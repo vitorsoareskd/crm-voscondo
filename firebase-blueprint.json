@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "condominios": {
+      "title": "Condomínios",
+      "description": "Lista de condomínios sob gestão"
+    },
+    "servicosExtras": {
+      "title": "Serviços Extras",
+      "description": "Orçamentos e serviços adicionais do CRM"
+    },
+    "inadimplentes": {
+      "title": "Inadimplentes",
+      "description": "Registros de inadimplência e notificações"
+    },
+    "tarefasGantt": {
+      "title": "Tarefas Gantt",
+      "description": "Cronograma e implantação de condomínios"
+    },
+    "tarefasEquipe": {
+      "title": "Tarefas da Equipe",
+      "description": "Controle de chamados e rotina operacional"
+    },
+    "fornecedores": {
+      "title": "Fornecedores",
+      "description": "Homologação e parceiros cadastrados"
+    },
+    "porquinhos": {
+      "title": "Cofres e Porquinhos",
+      "description": "Reservas financeiras e objetivos dos condomínios"
+    },
+    "transacoesExtrato": {
+      "title": "Transações do Extrato",
+      "description": "Movimentações financeiras reais"
+    },
+    "projecaoItems": {
+      "title": "Projeções Financeiras",
+      "description": "Itens de projeção orçamentária"
+    }
+  }
+}

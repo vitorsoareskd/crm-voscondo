@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .text-vos { font-family: 'Inter', 'Montserrat', 'Helvetica Neue', Arial, sans-serif; font-weight: 800; font-size: 72px; fill: #1c5222; letter-spacing: 2px; }
+      .text-condo { font-family: 'Inter', 'Montserrat', 'Helvetica Neue', Arial, sans-serif; font-weight: 700; font-size: 28px; fill: #2a3c2c; letter-spacing: 11px; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="500" height="500" class="bg" />
+
+  <!-- Ground Line -->
+  <path d="M 175,320 L 325,320" stroke="#3e3d3c" stroke-width="4.5" stroke-linecap="round" />
+
+  <!-- TRUNK (Low-Poly Brown Facets) -->
+  <polygon points="242,320 236,280 248,272 254,320" fill="#4d3019" />
+  <polygon points="242,320 254,320 250,270 242,280" fill="#754a27" />
+  <polygon points="254,320 268,320 258,285 250,270" fill="#3a2210" />
+  <polygon points="236,280 220,248 234,245 248,272" fill="#663f20" />
+  <polygon points="248,272 234,245 252,242 258,285" fill="#87552e" />
+  <polygon points="258,285 252,242 268,248 266,275" fill="#442712" />
+
+  <!-- CANOPY (Low-Poly Green Facets - Exact Matching attached image geometry) -->
+  <!-- Top Center Peak Facets (Lightest Greens) -->
+  <polygon points="250,65 212,112 250,132" fill="#9cdb43" />
+  <polygon points="250,65 250,132 282,110" fill="#80ca3a" />
+  <polygon points="250,65 282,110 312,88" fill="#a4e14a" />
+  <polygon points="250,65 195,88 212,112" fill="#b0ec53" />
+
+  <!-- Upper Left & Mid Left Facets -->
+  <polygon points="195,88 178,132 210,130 212,112" fill="#6bc036" />
+  <polygon points="212,112 210,130 242,160 250,132" fill="#4fa829" />
+  <polygon points="178,132 152,168 188,172 210,130" fill="#4ca328" />
+  <polygon points="210,130 188,172 222,192 242,160" fill="#32891b" />
+
+  <!-- Upper Right & Mid Right Facets -->
+  <polygon points="282,110 250,132 268,162 298,135" fill="#4da327" />
+  <polygon points="282,110 298,135 332,138 312,88" fill="#5bbb31" />
+  <polygon points="298,135 268,162 285,195 315,172" fill="#2d7f17" />
+  <polygon points="298,135 315,172 348,168 332,138" fill="#3ca120" />
+
+  <!-- Outer Wings (Left & Right Flairs) -->
+  <polygon points="152,168 128,198 165,202 188,172" fill="#3fa022" />
+  <polygon points="348,168 315,172 328,205 365,198" fill="#33921a" />
+
+  <!-- Central & Lower Base Facets -->
+  <polygon points="250,132 242,160 268,162" fill="#297715" />
+  <polygon points="242,160 222,192 250,215 268,162" fill="#1e5f0f" />
+  <polygon points="268,162 250,215 285,195" fill="#19540b" />
+
+  <!-- Bottom Overhang Facets (Dark Shadow Greens) -->
+  <polygon points="188,172 165,202 192,218 222,192" fill="#287316" />
+  <polygon points="222,192 192,218 215,238 250,215" fill="#18510a" />
+  <polygon points="250,215 215,238 245,255 250,248" fill="#124107" />
+
+  <polygon points="315,172 285,195 310,220 328,205" fill="#206310" />
+  <polygon points="285,195 250,215 282,238 310,220" fill="#154909" />
+  <polygon points="250,215 250,248 262,252 282,238" fill="#0d3104" />
+
+  <!-- TEXT "VOS" & "CONDOMÍNIOS" -->
+  <g text-anchor="middle">
+    <text x="250" y="395" class="text-vos">VOS</text>
+    <text x="254" y="432" class="text-condo">CONDOMÍNIOS</text>
+  </g>
+</svg>
