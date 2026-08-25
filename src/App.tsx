@@ -17,17 +17,12 @@ import {
   clearAllAppData,
   resetAllToInitialData
 } from './utils/storage';
-import {
-  subscribeToCollection,
-  saveCollectionToFirestore,
-  clearFirestoreCollection
-} from './lib/firebase';
 import { Condominio, ServicoExtra, Inadimplente, TarefaGantt, TarefaEquipe, Fornecedor, Porquinho, TransacaoExtrato, ProjecaoItem } from './types';
 import { Header } from './components/Header';
 import { CRMModule } from './components/crm/CRMModule';
 import { ERPModule } from './components/erp/ERPModule';
 import { TreasuryModule } from './components/vostreasury/TreasuryModule';
-import { SQLiteModule } from './components/sqlite/SQLiteModule';
+
 import { LoginScreen } from './components/auth/LoginScreen';
 
 export default function App() {
@@ -40,7 +35,7 @@ export default function App() {
   }, []);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<'crm' | 'erp' | 'treasury' | 'sqlite'>('crm');
+  const [activeTab, setActiveTab] = useState<'crm' | 'erp' | 'treasury'>('crm');
   const [subTab, setSubTab] = useState<string>('orcamentos');
 
   // Shared Central State with LocalStorage Persistence & Firestore Sync
@@ -71,6 +66,50 @@ export default function App() {
   const [projecaoItems, setProjecaoItems] = useState<ProjecaoItem[]>(() =>
     loadFromStorage(STORAGE_KEYS.PROJECAO_ITEMS, PROJECAO_ITEMS_INICIAIS)
   );
+  const [agenda, setAgenda] = useState<any[]>(() => 
+    loadFromStorage(STORAGE_KEYS.AGENDA, [])
+  );
+
+  // Sync Agenda State
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.AGENDA, agenda);
+  }, [agenda]);
+
+  // Fetch from backend API
+  useEffect(() => {
+    fetch('http://localhost:3001/api/condominios')
+      .then(res => res.json())
+      .then(data => {
+        // Mapeia os dados do SQLite para a interface do frontend, preenchendo o que falta com valores padrao
+        const condominiosApi: Condominio[] = data.map((c: any) => ({
+          id: String(c.id),
+          nome: c.nome,
+          cnpj: c.cnpj || '',
+          status: c.status || 'Interessado',
+          unidades: 0,
+          endereco: 'Endereço não cadastrado',
+          sindicoResponsavel: 'Não informado',
+          emailCondominio: '',
+          numeroCondominio: '',
+          banco: '',
+          agenciaEConta: '',
+          complexidade: 'Moderado',
+          plano: 'Vos Essencial',
+          fatorAjuste: 1,
+          mensalidadeCalculada: 0,
+          livreCaixa: 0,
+          fundoObras: 0,
+          fundoPintura: 0,
+          fundoReforma: 0,
+          gastoMedioMensal: 0,
+          rendimentoMedioMensal: 0
+        }));
+        if (condominiosApi.length > 0) {
+          setCondominios(condominiosApi);
+        }
+      })
+      .catch(err => console.error("Erro ao buscar condominios da API:", err));
+  }, []);
 
   // Automatically clear test data on first launch ready for production
   useEffect(() => {
@@ -80,75 +119,43 @@ export default function App() {
     }
   }, []);
 
-  // Firestore Subscriptions & Real-Time Sync
-  useEffect(() => {
-    const unsubCondominios = subscribeToCollection<Condominio>('condominios', (data) => setCondominios(data), CONDOMINIOS_INICIAIS);
-    const unsubServicos = subscribeToCollection<ServicoExtra>('servicosExtras', (data) => setServicosExtras(data), SERVICOS_EXTRAS_INICIAIS);
-    const unsubInadimplentes = subscribeToCollection<Inadimplente>('inadimplentes', (data) => setInadimplentes(data), INADIMPLENTES_INICIAIS);
-    const unsubTarefasGantt = subscribeToCollection<TarefaGantt>('tarefasGantt', (data) => setTarefasGantt(data), TAREFAS_GANTT_INICIAIS);
-    const unsubTarefasEquipe = subscribeToCollection<TarefaEquipe>('tarefasEquipe', (data) => setTarefasEquipe(data), TAREFAS_EQUIPE_INICIAIS);
-    const unsubFornecedores = subscribeToCollection<Fornecedor>('fornecedores', (data) => setFornecedores(data), FORNECEDORES_INICIAIS);
-    const unsubPorquinhos = subscribeToCollection<Porquinho>('porquinhos', (data) => setPorquinhos(data), PORQUINHOS_INICIAIS);
-    const unsubTransacoes = subscribeToCollection<TransacaoExtrato>('transacoesExtrato', (data) => setTransacoesExtrato(data), TRANSACOES_EXTRATO_INICIAIS);
-    const unsubProjecao = subscribeToCollection<ProjecaoItem>('projecaoItems', (data) => setProjecaoItems(data), PROJECAO_ITEMS_INICIAIS);
 
-    return () => {
-      unsubCondominios();
-      unsubServicos();
-      unsubInadimplentes();
-      unsubTarefasGantt();
-      unsubTarefasEquipe();
-      unsubFornecedores();
-      unsubPorquinhos();
-      unsubTransacoes();
-      unsubProjecao();
-    };
-  }, []);
 
-  // Sync state changes to LocalStorage and direct to Cloud Firestore
+  // Sync state changes to LocalStorage
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.CONDOMINIOS, condominios);
-    saveCollectionToFirestore('condominios', condominios);
   }, [condominios]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, servicosExtras);
-    saveCollectionToFirestore('servicosExtras', servicosExtras);
   }, [servicosExtras]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.INADIMPLENTES, inadimplentes);
-    saveCollectionToFirestore('inadimplentes', inadimplentes);
   }, [inadimplentes]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.TAREFAS_GANTT, tarefasGantt);
-    saveCollectionToFirestore('tarefasGantt', tarefasGantt);
   }, [tarefasGantt]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.TAREFAS_EQUIPE, tarefasEquipe);
-    saveCollectionToFirestore('tarefasEquipe', tarefasEquipe);
   }, [tarefasEquipe]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.FORNECEDORES, fornecedores);
-    saveCollectionToFirestore('fornecedores', fornecedores);
   }, [fornecedores]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.PORQUINHOS, porquinhos);
-    saveCollectionToFirestore('porquinhos', porquinhos);
   }, [porquinhos]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, transacoesExtrato);
-    saveCollectionToFirestore('transacoesExtrato', transacoesExtrato);
   }, [transacoesExtrato]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, projecaoItems);
-    saveCollectionToFirestore('projecaoItems', projecaoItems);
   }, [projecaoItems]);
 
   const handleLogout = () => {
@@ -169,18 +176,6 @@ export default function App() {
     setPorquinhos([]);
     setTransacoesExtrato([]);
     setProjecaoItems([]);
-
-    await Promise.all([
-      clearFirestoreCollection('condominios'),
-      clearFirestoreCollection('servicosExtras'),
-      clearFirestoreCollection('inadimplentes'),
-      clearFirestoreCollection('tarefasGantt'),
-      clearFirestoreCollection('tarefasEquipe'),
-      clearFirestoreCollection('fornecedores'),
-      clearFirestoreCollection('porquinhos'),
-      clearFirestoreCollection('transacoesExtrato'),
-      clearFirestoreCollection('projecaoItems'),
-    ]);
   };
 
   const handleResetData = async () => {
@@ -194,18 +189,6 @@ export default function App() {
     setPorquinhos(PORQUINHOS_INICIAIS);
     setTransacoesExtrato(TRANSACOES_EXTRATO_INICIAIS);
     setProjecaoItems(PROJECAO_ITEMS_INICIAIS);
-
-    await Promise.all([
-      saveCollectionToFirestore('condominios', CONDOMINIOS_INICIAIS),
-      saveCollectionToFirestore('servicosExtras', SERVICOS_EXTRAS_INICIAIS),
-      saveCollectionToFirestore('inadimplentes', INADIMPLENTES_INICIAIS),
-      saveCollectionToFirestore('tarefasGantt', TAREFAS_GANTT_INICIAIS),
-      saveCollectionToFirestore('tarefasEquipe', TAREFAS_EQUIPE_INICIAIS),
-      saveCollectionToFirestore('fornecedores', FORNECEDORES_INICIAIS),
-      saveCollectionToFirestore('porquinhos', PORQUINHOS_INICIAIS),
-      saveCollectionToFirestore('transacoesExtrato', TRANSACOES_EXTRATO_INICIAIS),
-      saveCollectionToFirestore('projecaoItems', PROJECAO_ITEMS_INICIAIS),
-    ]);
   };
 
   // Render Lock Screen if not authenticated
@@ -250,6 +233,8 @@ export default function App() {
             setTarefasEquipe={setTarefasEquipe}
             fornecedores={fornecedores}
             setFornecedores={setFornecedores}
+            agenda={agenda}
+            setAgenda={setAgenda}
             subTab={subTab}
           />
         )}
@@ -271,7 +256,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'sqlite' && <SQLiteModule appCondominios={condominios} />}
+
       </main>
 
       {/* Footer */}

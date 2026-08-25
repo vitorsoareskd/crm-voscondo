@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Condominio } from '../../types';
 import { formatarMoeda } from '../../utils/pricingEngine';
 import {
@@ -113,8 +113,8 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
     } else {
       const roundedFracao = Math.round(fracao * 100000) / 100000;
       groupKey = `frac_${roundedFracao}`;
-      keyLabel = `${roundedFracao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
-      fracaoLabel = `${roundedFracao.toFixed(4)}%`;
+      keyLabel = `${roundedFracao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}%`;
+      fracaoLabel = `${roundedFracao.toFixed(3)}%`;
       ordenacao = fracao;
     }
 
@@ -151,7 +151,7 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
   }, [somaTotalValores, somaTotalMoradores]);
 
   return (
-    <div className={`mt-3 pt-3 border-t ${borderColor} space-y-2.5`}>
+    <div className={`mt-3 pt-3 border-t ${borderColor} space-y-2.5 print:hidden`}>
       <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50/90 p-2.5 rounded-xl border border-slate-200/80">
         <div className="flex items-center gap-2">
           <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
@@ -169,22 +169,20 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
           <button
             type="button"
             onClick={() => onTipoRateioChange('fracao_ideal')}
-            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-              tipoRateio === 'fracao_ideal'
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${tipoRateio === 'fracao_ideal'
                 ? 'bg-[#2d5a32] text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
+              }`}
           >
             Fração Ideal (%)
           </button>
           <button
             type="button"
             onClick={() => onTipoRateioChange('divisao_igual')}
-            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-              tipoRateio === 'divisao_igual'
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${tipoRateio === 'divisao_igual'
                 ? 'bg-blue-700 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
+              }`}
           >
             Divisão Igualitária (R$)
           </button>
@@ -194,11 +192,10 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
               onTipoRateioChange('moradores');
               setJanelaMoradoresAberta(true);
             }}
-            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1 ${
-              tipoRateio === 'moradores'
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1 ${tipoRateio === 'moradores'
                 ? 'bg-amber-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
+              }`}
           >
             <Users className="w-3.5 h-3.5" />
             <span>Por Moradores (Habitantes)</span>
@@ -234,11 +231,10 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
             <button
               type="button"
               onClick={() => onEscopoRateioAguaChange('apenas_excedente')}
-              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
-                escopoRateioAgua === 'apenas_excedente'
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${escopoRateioAgua === 'apenas_excedente'
                   ? 'bg-sky-700 text-white border-sky-800 shadow-xs ring-2 ring-sky-400'
                   : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50/50'
-              }`}
+                }`}
             >
               <div className={`mt-0.5 p-1 rounded-full ${escopoRateioAgua === 'apenas_excedente' ? 'bg-white/20 text-white' : 'bg-sky-100 text-sky-700'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -259,11 +255,10 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
             <button
               type="button"
               onClick={() => onEscopoRateioAguaChange('total_com_taxa_minima')}
-              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
-                escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua
                   ? 'bg-sky-700 text-white border-sky-800 shadow-xs ring-2 ring-sky-400'
                   : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50/50'
-              }`}
+                }`}
             >
               <div className={`mt-0.5 p-1 rounded-full ${escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua ? 'bg-white/20 text-white' : 'bg-sky-100 text-sky-700'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -322,8 +317,8 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
                 {tipoRateio === 'fracao_ideal'
                   ? 'Subtotal do Rateio por Fração Ideal:'
                   : tipoRateio === 'moradores'
-                  ? 'Subtotal do Rateio por Nº de Moradores:'
-                  : 'Subtotal da Divisão Igualitária:'}
+                    ? 'Subtotal do Rateio por Nº de Moradores:'
+                    : 'Subtotal da Divisão Igualitária:'}
               </td>
               <td className="py-2 px-2.5 text-right font-mono font-black text-[#2d5a32]">
                 {formatarMoeda(totalGeralGrupos)}
@@ -338,7 +333,7 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
       {janelaMoradoresAberta && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            
+
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-amber-900 via-amber-800 to-amber-950 text-white p-4 sm:p-5 flex items-center justify-between shadow-md">
               <div className="flex items-center gap-3">
@@ -390,22 +385,20 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
                         <button
                           type="button"
                           onClick={() => onEscopoRateioAguaChange('apenas_excedente')}
-                          className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                            escopoRateioAgua === 'apenas_excedente'
+                          className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${escopoRateioAgua === 'apenas_excedente'
                               ? 'bg-sky-700 text-white border-sky-800 shadow-2xs'
                               : 'bg-white text-sky-900 border-sky-300 hover:bg-sky-100'
-                          }`}
+                            }`}
                         >
                           Apenas Excedente
                         </button>
                         <button
                           type="button"
                           onClick={() => onEscopoRateioAguaChange('total_com_taxa_minima')}
-                          className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                            escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua
+                          className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua
                               ? 'bg-sky-700 text-white border-sky-800 shadow-2xs'
                               : 'bg-white text-sky-900 border-sky-300 hover:bg-sky-100'
-                          }`}
+                            }`}
                         >
                           Taxa Mínima + Excedente
                         </button>
@@ -506,7 +499,7 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
                             </div>
                           </td>
                           <td className="py-2 px-3 text-right font-mono font-bold text-slate-600">
-                            {Number(u.fracaoIdeal || 0).toFixed(4)}%
+                            {Number(u.fracaoIdeal || 0).toFixed(3)}%
                           </td>
                           <td className="py-2 px-3 text-right bg-emerald-50/50">
                             <div className="flex flex-col items-end">
@@ -602,13 +595,13 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
 
   const handleGerarEAtualizarRelatorio = () => {
     setIsGerando(true);
-    
+
     setTimeout(() => {
       setIsGerando(false);
       const agora = new Date();
       const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setUltimaAtualizacao(hora);
-      
+
       setMensagemGeracao(
         `Relatório do ${nomeCondominioExibicao} (${mesReferencia}) gerado e atualizado com sucesso às ${hora}! Todos os demonstrativos, tabelas de rateio e frações foram recalculados.`
       );
@@ -760,12 +753,109 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const [tipoFundoObras, setTipoFundoObras] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
   const [tipoRateioAgua, setTipoRateioAgua] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
 
-  const [tipoFundoReserva, setTipoFundoReserva] = useState<'percentual_cota' | 'valor_fixo_unidade'>('percentual_cota');
+
   const [fundoReservaValor, setFundoReservaValor] = useState<number>(10); // 10% or R$ 50
   const [fundoPinturaPorUnidade, setFundoPinturaPorUnidade] = useState<number>(25.0);
   const [fundoObrasPorUnidade, setFundoObrasPorUnidade] = useState<number>(15.0);
-  const [taxaEmissaoBoleto, setTaxaEmissaoBoleto] = useState<number>(3.5);
+  const [taxaBoletoValor, setTaxaBoletoValor] = useState<number>(3.50);
   const [vencimentoBoleto, setVencimentoBoleto] = useState<string>('10/08/2026');
+
+  // Textos editáveis baseados nos templates
+  const [descricaoFundoObras, setDescricaoFundoObras] = useState<string>('Fundo Permanente de Obras e Manutenção Estrutural Geral');
+  const [composicaoAgua, setComposicaoAgua] = useState<string>('Sanepar/Concessionária');
+
+  // Aplicar templates quando o condomínio for selecionado
+  useEffect(() => {
+    try {
+      if (condominioId && condominioId !== 'custom') {
+        const c = condominios.find(c => c.id === condominioId);
+        if (c && c.templatesRelatorio) {
+          const tr = c.templatesRelatorio;
+
+          // 1. Despesas Múltiplas
+          if (tr.despesasPadrao && tr.despesasPadrao.length > 0) {
+            setDespesasOrdinarias(
+              tr.despesasPadrao.filter(desc => desc.trim() !== '').map((desc, i) => ({
+                id: Date.now().toString(36) + Math.random().toString(36).substring(2) + i,
+                descricao: desc,
+                vencimentoReferencia: '',
+                valor: 0
+              }))
+            );
+          } else {
+            // Fallback se não houver template configurado
+            setDespesasOrdinarias([{
+              id: Date.now().toString(36) + Math.random().toString(36).substring(2),
+              descricao: 'Despesas ref. Mês Anterior',
+              vencimentoReferencia: '',
+              valor: 0
+            }]);
+          }
+
+          // 2. Fundo Reserva - Agora é sempre um percentual da Cota Básica
+          if (tr.fundoReservaAliquota) {
+            setFundoReservaValor(Number(String(tr.fundoReservaAliquota).replace('%', '').replace(',', '.')) || 0);
+          } else if (tr.fundoReservaValor) {
+            setFundoReservaValor(Number(String(tr.fundoReservaValor).replace('%', '').replace(',', '.')) || 0);
+          }
+
+          // 3. Obras
+          if (tr.obrasPadrao && tr.obrasPadrao.length > 0) {
+            setDespesasExtraordinarias(
+              tr.obrasPadrao.map(descricao => ({
+                id: Date.now().toString(36) + Math.random().toString(36).substring(2),
+                descricao,
+                percentualRateio: 100,
+                valor: 0
+              }))
+            );
+          } else {
+            setDespesasExtraordinarias([{
+              id: Date.now().toString(36) + Math.random().toString(36).substring(2),
+              descricao: tr.obrasDescricao || 'Rateio Obras',
+              percentualRateio: 100,
+              valor: 0
+            }]);
+          }
+
+          // 4. Fundo Pintura e Fundo Obras
+          if (tr.fundoPinturaValor) {
+            setTipoFundoPintura('valor_fixo_unidade');
+            setFundoPinturaPorUnidade(Number(String(tr.fundoPinturaValor).replace(',', '.')) || 0);
+          }
+          if (tr.fundoObrasValor) {
+            setTipoFundoObras('valor_fixo_unidade');
+            setFundoObrasPorUnidade(Number(String(tr.fundoObrasValor).replace(',', '.')) || 0);
+          }
+
+          // 4.1 Taxa de Boleto
+          if (tr.taxaBoletoValor) {
+            setTaxaBoletoValor(Number(String(tr.taxaBoletoValor).replace(',', '.')) || 0);
+          }
+
+          // 5. Rateio Água
+          if (tr.aguaTipoRateio) setTipoRateioAgua(tr.aguaTipoRateio as any);
+          if (tr.aguaComposicao) setComposicaoAgua(tr.aguaComposicao);
+
+          // 6. Unidades e Moradores Pré-Editados
+          if (tr.unidadesPadrao && tr.unidadesPadrao.length > 0) {
+            // Mapeia as unidades padronizadas do template para o formato do demonstrativo
+            setUnidadesConfig(
+              tr.unidadesPadrao.map(u => ({
+                unidadeId: u.unidadeId,
+                nomeUnidade: u.nomeUnidade,
+                moradores: u.moradores,
+                fracaoIdeal: u.fracaoIdeal !== undefined ? Number(u.fracaoIdeal) : Number((100 / tr.unidadesPadrao!.length).toFixed(7))
+              }))
+            );
+            setNumeroUnidades(tr.unidadesPadrao.length);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao aplicar templates:', error);
+    }
+  }, [condominioId, condominios]);
 
   // Seleção de seções ativas para o PDF / Impressão
   const [secoesRelatorioPDF, setSecoesRelatorioPDF] = useState({
@@ -775,7 +865,22 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     fundoPintura: true,
     fundoObras: true,
     aguaSaneamento: true,
+    taxaBoleto: true,
     demonstrativoIndividual: true,
+  });
+
+  const [colunasPDF, setColunasPDF] = useState({
+    unidade: true,
+    vencimento: true,
+    taxaBoleto: true,
+    cotaBasica: true,
+    despesaExtraordinaria: true,
+    fundoObras: true,
+    fundoReserva: true,
+    fundoPintura: true,
+    taxaMinAgua: true,
+    excedenteAgua: true,
+    totalUnidade: true,
   });
 
   // Helper functions for adding/removing items
@@ -825,11 +930,8 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   }, [taxaMinimaAgua, excedenteAguaTotal]);
 
   const totalFundoReservaCalculado = useMemo(() => {
-    if (tipoFundoReserva === 'percentual_cota') {
-      return totalOrdinarias * ((fundoReservaValor || 0) / 100);
-    }
-    return (fundoReservaValor || 0) * (numeroUnidades || 1);
-  }, [tipoFundoReserva, totalOrdinarias, fundoReservaValor, numeroUnidades]);
+    return totalOrdinarias * ((fundoReservaValor || 0) / 100);
+  }, [totalOrdinarias, fundoReservaValor]);
 
   const totalFundoPinturaCalculado = useMemo(() => {
     return (fundoPinturaPorUnidade || 0) * (numeroUnidades || 1);
@@ -839,6 +941,10 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     return (fundoObrasPorUnidade || 0) * (numeroUnidades || 1);
   }, [fundoObrasPorUnidade, numeroUnidades]);
 
+  const totalTaxaBoletoCalculado = useMemo(() => {
+    return (taxaBoletoValor || 0) * (numeroUnidades || 1);
+  }, [taxaBoletoValor, numeroUnidades]);
+
   const totalGeralDespesasMes = useMemo(() => {
     return (
       totalOrdinarias +
@@ -846,6 +952,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
       totalExtraordinarias +
       totalFundoPinturaCalculado +
       totalFundoObrasCalculado +
+      totalTaxaBoletoCalculado +
       totalAgua
     );
   }, [
@@ -854,7 +961,28 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     totalExtraordinarias,
     totalFundoPinturaCalculado,
     totalFundoObrasCalculado,
+    totalTaxaBoletoCalculado,
     totalAgua
+  ]);
+
+  const resumoGeralValores = useMemo(() => ({
+    cotaBasica: totalOrdinarias,
+    fundoReserva: totalFundoReservaCalculado,
+    extraordinarias: totalExtraordinarias,
+    fundoPintura: totalFundoPinturaCalculado,
+    fundoObras: totalFundoObrasCalculado,
+    agua: totalAgua,
+    taxaBoleto: totalTaxaBoletoCalculado,
+    totalGeral: totalGeralDespesasMes
+  }), [
+    totalOrdinarias,
+    totalFundoReservaCalculado,
+    totalExtraordinarias,
+    totalFundoPinturaCalculado,
+    totalFundoObrasCalculado,
+    totalAgua,
+    totalTaxaBoletoCalculado,
+    totalGeralDespesasMes
   ]);
 
   const somaFracoesTotais = useMemo(() => {
@@ -882,13 +1010,8 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
         cotaBasica = totalOrdinarias / (numeroUnidades || 1);
       }
 
-      // 2. Fundo de Reserva
-      let fundoReservaBase = 0;
-      if (tipoFundoReserva === 'percentual_cota') {
-        fundoReservaBase = totalOrdinarias * ((fundoReservaValor || 0) / 100);
-      } else {
-        fundoReservaBase = (fundoReservaValor || 0) * (numeroUnidades || 1);
-      }
+      // 2. Fundo de Reserva (Sempre Percentual da Cota Básica)
+      const fundoReservaBase = totalOrdinarias * ((fundoReservaValor || 0) / 100);
 
       let fundoReserva = 0;
       if (tipoRateioFundoReserva === 'fracao_ideal' && somaFracoesTotais > 0) {
@@ -979,38 +1102,29 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
         }
       }
 
-      // 7. Taxa Emissão Boleto
-      const taxaBoleto = taxaEmissaoBoleto || 0;
-
-      // Total
-      const totalUnidade =
-        cotaBasica +
-        fundoReserva +
-        despesaExtra +
-        taxaMinAguaUnidade +
-        excedenteAguaUnidade +
-        fundoPintura +
-        fundoObras +
-        taxaBoleto;
+      // 7. Taxa de Boleto
+      const taxaBoleto = taxaBoletoValor || 0;
 
       return {
-        ...u,
+        unidadeId: u.unidadeId,
+        nomeUnidade: u.nomeUnidade,
+        fracaoIdeal: u.fracaoIdeal,
+        moradores: moradoresUnidade,
         vencimento: vencimentoBoleto,
-        taxaBoleto,
         cotaBasica,
         fundoReserva,
         despesaExtra,
-        taxaMinAguaUnidade,
-        excedenteAguaUnidade,
         fundoPintura,
         fundoObras,
-        totalUnidade
+        taxaMinAguaUnidade,
+        excedenteAguaUnidade,
+        taxaBoleto,
+        totalUnidade: cotaBasica + fundoReserva + despesaExtra + fundoPintura + fundoObras + taxaMinAguaUnidade + excedenteAguaUnidade + taxaBoleto
       };
     });
   }, [
     unidadesConfig,
     tipoCotaBasica,
-    tipoRateioFundoReserva,
     tipoDespesaExtra,
     tipoFundoPintura,
     tipoFundoObras,
@@ -1018,15 +1132,12 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     somaFracoesTotais,
     totalOrdinarias,
     numeroUnidades,
-    tipoFundoReserva,
     fundoReservaValor,
     totalExtraordinarias,
-    taxaMinimaAgua,
-    excedenteAguaTotal,
-    escopoRateioAgua,
+    totalAgua,
     fundoPinturaPorUnidade,
     fundoObrasPorUnidade,
-    taxaEmissaoBoleto,
+    taxaBoletoValor,
     vencimentoBoleto
   ]);
 
@@ -1059,7 +1170,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   }, [demonstrativoUnidades]);
 
   // Audit calculation validation
-  const totalArrecadacaoEsperada = totalGeralDespesasMes + totaisDemonstrativo.taxaBoleto;
+  const totalArrecadacaoEsperada = totalGeralDespesasMes;
   const diferencaAuditoria = Math.abs(totaisDemonstrativo.totalGeral - totalArrecadacaoEsperada);
 
   const temInconsistenciaFracao = Math.abs(somaFracoesTotais - 100) > 0.05;
@@ -1167,7 +1278,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
       </div>
 
       {/* BLOCO: Informações do Condomínio (Formulário de Configuração - Oculto na Impressão) */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6 print:hidden">
+      <div className="bg-[#e8f0e6] p-6 rounded-2xl border border-emerald-200/60 shadow-xs space-y-6 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4 border-slate-100">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-[#2d5a32]" />
@@ -1280,234 +1391,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             </span>
           </div>
         )}
-
-        {/* Collapsible Fraction Ideal Matrix - Tabela Estilo Excel com Copiar e Colar Direto */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-            <div className="flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-[#2d5a32]" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
-                Configuração da Fração Ideal & Moradores por Unidade
-              </span>
-              <span
-                className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                  temInconsistenciaFracao
-                    ? 'bg-amber-100 text-amber-800 border-amber-300'
-                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                }`}
-              >
-                Soma Frações: {somaFracoesTotais.toFixed(2)}%
-              </span>
-              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-100/90 text-amber-900 border-amber-300 flex items-center gap-1">
-                <Users className="w-3 h-3 text-amber-700" />
-                <span>Total Moradores: {totalMoradoresCondominio} hab.</span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setMostrarAreaExcel(!mostrarAreaExcel)}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Colar do Excel</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMostrarMatrizFracoes(!mostrarMatrizFracoes)}
-                className="bg-white border border-slate-300 hover:bg-slate-100 px-3 py-1.5 rounded-lg font-bold text-slate-700 flex items-center gap-1 shadow-2xs cursor-pointer"
-              >
-                <span>{mostrarMatrizFracoes ? 'Ocultar Tabela Excel' : 'Exibir Tabela Excel'}</span>
-                {mostrarMatrizFracoes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Feedback Success Toast */}
-          {mensagemSucessoExcel && (
-            <div className="p-3 bg-emerald-100 border border-emerald-300 rounded-xl text-emerald-900 font-bold text-xs flex items-center gap-2 animate-fadeIn">
-              <Check className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>{mensagemSucessoExcel}</span>
-            </div>
-          )}
-
-          {/* Área de Colagem Direta do Excel */}
-          {mostrarAreaExcel && (
-            <div className="bg-emerald-50/80 border-2 border-dashed border-emerald-300 p-4 rounded-xl space-y-3 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-800" />
-                  <span className="font-bold text-xs text-emerald-900 uppercase tracking-wider">
-                    Área de Colagem Rápida do Excel (Ctrl + V)
-                  </span>
-                </div>
-                <span className="text-[11px] text-emerald-700 font-medium">
-                  Copie duas colunas da sua planilha (Coluna 1: Unidade, Coluna 2: Fração %)
-                </span>
-              </div>
-
-              <textarea
-                rows={4}
-                value={textoExcelInput}
-                onChange={(e) => setTextoExcelInput(e.target.value)}
-                onPaste={(e) => {
-                  const pasted = e.clipboardData.getData('text');
-                  if (pasted) {
-                    processarTextoExcel(pasted);
-                  }
-                }}
-                placeholder="Cole aqui os dados copiados do Excel (Ctrl + V)... Exemplo:&#10;Apt 101&#t4.1666&#10;Apt 102&#t4.1666&#10;Apt 103&#t5.0000"
-                className="w-full p-3 font-mono text-xs border border-emerald-300 rounded-xl bg-white text-slate-800 focus:ring-2 focus:ring-[#2d5a32] focus:outline-none shadow-inner"
-              />
-
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMostrarAreaExcel(false)}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => processarTextoExcel(textoExcelInput)}
-                  className="bg-[#2d5a32] hover:bg-[#1f4223] text-white font-bold text-xs px-4 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Processar e Atualizar Unidades</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {mostrarMatrizFracoes && (
-            <div className="pt-2 space-y-2">
-              <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <p>
-                  Planilha de frações e moradores com colunas estilo <strong>Excel (A: Unidade | B: Fração Ideal % | C: Nº Moradores)</strong>. Você pode alterar manualmente ou dar <strong>Ctrl + V</strong> para colar do Excel.
-                </p>
-                <span className="font-mono text-slate-600 font-semibold bg-slate-200/60 px-2 py-0.5 rounded">
-                  {numeroUnidades} Linhas
-                </span>
-              </div>
-
-              {/* Tabela Formatada como Excel */}
-              <div
-                className="max-h-80 overflow-y-auto border border-slate-300 rounded-xl bg-white shadow-2xs"
-                onPaste={(e) => {
-                  const pasted = e.clipboardData.getData('text');
-                  if (pasted && pasted.includes('\n')) {
-                    e.preventDefault();
-                    processarTextoExcel(pasted);
-                  }
-                }}
-              >
-                <table className="w-full text-left text-xs border-collapse font-sans">
-                  <thead className="sticky top-0 bg-slate-100 border-b-2 border-slate-300 text-slate-700 font-bold uppercase text-[10px] z-10 select-none">
-                    <tr>
-                      <th className="py-2 px-3 w-12 text-center bg-slate-200/70 border-r border-slate-300 text-slate-500 font-mono">
-                        #
-                      </th>
-                      <th className="py-2.5 px-4 w-1/3 border-r border-slate-300 bg-slate-100">
-                        <div className="flex items-center justify-between">
-                          <span>Coluna A: Nome da Unidade</span>
-                          <span className="text-[9px] font-mono font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                            A
-                          </span>
-                        </div>
-                      </th>
-                      <th className="py-2.5 px-4 w-1/3 text-right border-r border-slate-300 bg-slate-100">
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-[9px] font-mono font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                            B
-                          </span>
-                          <span>Coluna B: Fração Ideal (%)</span>
-                        </div>
-                      </th>
-                      <th className="py-2.5 px-4 w-1/3 text-center bg-amber-50/80">
-                        <div className="flex items-center justify-center gap-2 text-amber-900">
-                          <span className="text-[9px] font-mono font-bold bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">
-                            C
-                          </span>
-                          <span>Coluna C: Nº Moradores (Habitantes)</span>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {unidadesConfig.map((u, idx) => (
-                      <tr key={u.unidadeId} className="hover:bg-emerald-50/50 transition-colors group">
-                        {/* Row Index Column */}
-                        <td className="py-1.5 px-2 text-center font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 group-hover:bg-emerald-100/50 text-[10px]">
-                          {idx + 1}
-                        </td>
-
-                        {/* Coluna A: Unidade */}
-                        <td className="py-1.5 px-3 border-r border-slate-200">
-                          <input
-                            type="text"
-                            value={u.nomeUnidade}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setUnidadesConfig((prev) =>
-                                prev.map((item) => (item.unidadeId === u.unidadeId ? { ...item, nomeUnidade: val } : item))
-                              );
-                            }}
-                            placeholder={`Apt ${u.unidadeId}`}
-                            className="w-full px-2.5 py-1 border border-slate-200 hover:border-slate-400 focus:border-[#2d5a32] focus:ring-1 focus:ring-[#2d5a32] rounded font-bold text-slate-800 focus:outline-none transition-all"
-                          />
-                        </td>
-
-                        {/* Coluna B: Fração Ideal */}
-                        <td className="py-1.5 px-3 text-right border-r border-slate-200">
-                          <div className="flex items-center justify-end gap-1">
-                            <input
-                              type="number"
-                              step="0.0001"
-                              value={u.fracaoIdeal}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 0;
-                                setUnidadesConfig((prev) =>
-                                  prev.map((item) => (item.unidadeId === u.unidadeId ? { ...item, fracaoIdeal: val } : item))
-                                );
-                              }}
-                              className="w-32 px-2.5 py-1 border border-slate-200 hover:border-slate-400 focus:border-[#2d5a32] focus:ring-1 focus:ring-[#2d5a32] rounded font-mono font-bold text-right text-slate-800 focus:outline-none transition-all"
-                            />
-                            <span className="font-bold text-slate-500 font-mono text-xs">%</span>
-                          </div>
-                        </td>
-
-                        {/* Coluna C: Nº Moradores */}
-                        <td className="py-1.5 px-3 text-center bg-amber-50/30">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <input
-                              type="number"
-                              min={1}
-                              max={20}
-                              value={u.moradores !== undefined ? u.moradores : 2}
-                              onChange={(e) => {
-                                const val = Math.max(1, parseInt(e.target.value) || 1);
-                                setUnidadesConfig((prev) =>
-                                  prev.map((item) => (item.unidadeId === u.unidadeId ? { ...item, moradores: val } : item))
-                                );
-                              }}
-                              className="w-20 px-2 py-1 border border-amber-300 hover:border-amber-500 focus:border-amber-600 focus:ring-1 focus:ring-amber-500 rounded font-bold text-center text-amber-950 bg-white focus:outline-none transition-all"
-                            />
-                            <span className="text-[11px] font-semibold text-amber-800">hab.</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
-
       {/* SEÇÃO 1: RELATÓRIO DESPESAS */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6 print:border-none print:p-0">
         <div className="border-b pb-4 border-slate-100 flex flex-wrap items-center justify-between gap-3">
@@ -1544,7 +1428,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
         {/* Tabelas Empilhadas em Ordem Estrita */}
         <div className="space-y-6">
           {/* 1. Cota Básica (Despesas Ordinárias do Mês) */}
-          <div className={`bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 transition-all ${!secoesRelatorioPDF.ordinarias ? 'print:hidden opacity-60' : ''}`}>
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.ordinarias ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
@@ -1660,7 +1544,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           </div>
 
           {/* 2. Fundo Reserva */}
-          <div className={`bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 transition-all ${!secoesRelatorioPDF.fundoReserva ? 'print:hidden opacity-60' : ''}`}>
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.fundoReserva ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
@@ -1694,14 +1578,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                 <tbody>
                   <tr className="bg-white hover:bg-slate-100/60 transition-colors">
                     <td className="py-2 px-2">
-                      <select
-                        value={tipoFundoReserva}
-                        onChange={(e) => setTipoFundoReserva(e.target.value as any)}
-                        className="w-full p-1.5 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white focus:ring-1 focus:ring-[#2d5a32] focus:outline-none"
-                      >
-                        <option value="percentual_cota">% Percentual sobre a Cota Básica</option>
-                        <option value="valor_fixo_unidade">Valor Fixo (R$) por Unidade</option>
-                      </select>
+                      <div className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">% Percentual sobre a Cota Básica</div>
                     </td>
                     <td className="py-2 px-2 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -1712,9 +1589,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                           onChange={(e) => setFundoReservaValor(parseFloat(e.target.value) || 0)}
                           className="w-28 p-1.5 border border-slate-200 rounded-lg font-mono font-bold text-slate-800 text-right bg-white focus:ring-1 focus:ring-[#2d5a32] focus:outline-none"
                         />
-                        <span className="font-bold text-slate-600">
-                          {tipoFundoReserva === 'percentual_cota' ? '%' : 'R$'}
-                        </span>
+                        <span className="font-bold text-slate-600">%</span>
                       </div>
                     </td>
                     <td className="py-2 px-2 text-right font-mono font-bold text-emerald-800 text-sm">
@@ -1737,7 +1612,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           </div>
 
           {/* 3. Despesas Extraordinárias e Obras */}
-          <div className={`bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 transition-all ${!secoesRelatorioPDF.extraordinarias ? 'print:hidden opacity-60' : ''}`}>
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.extraordinarias ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
@@ -1853,7 +1728,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           </div>
 
           {/* 4. Fundo Pintura */}
-          <div className={`bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 transition-all ${!secoesRelatorioPDF.fundoPintura ? 'print:hidden opacity-60' : ''}`}>
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.fundoPintura ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
@@ -1921,7 +1796,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           </div>
 
           {/* 5. Fundo Obras */}
-          <div className={`bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 transition-all ${!secoesRelatorioPDF.fundoObras ? 'print:hidden opacity-60' : ''}`}>
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.fundoObras ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
@@ -1955,7 +1830,13 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                 <tbody>
                   <tr className="bg-white hover:bg-slate-100/60 transition-colors">
                     <td className="py-2 px-2 font-medium text-slate-700">
-                      Fundo Permanente de Obras e Manutenção Estrutural Geral
+                      <input
+                        type="text"
+                        value={descricaoFundoObras}
+                        onChange={(e) => setDescricaoFundoObras(e.target.value)}
+                        className="w-full p-1.5 border-b border-transparent hover:border-slate-300 focus:border-purple-500 bg-transparent focus:bg-white focus:outline-none transition-all"
+                        placeholder="Ex: Fundo Permanente de Obras..."
+                      />
                     </td>
                     <td className="py-2 px-2 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -1989,7 +1870,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           </div>
 
           {/* 6. Custos de Água e Saneamento do Mês */}
-          <div className={`bg-sky-50/60 p-4 rounded-xl border border-sky-200/80 space-y-3 transition-all ${!secoesRelatorioPDF.aguaSaneamento ? 'print:hidden opacity-60' : ''}`}>
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.aguaSaneamento ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-sky-300 hover:border-sky-400 text-[11px] font-bold text-sky-900 select-none shadow-2xs print:hidden">
@@ -2022,7 +1903,16 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                 </thead>
                 <tbody className="divide-y divide-sky-200/60 bg-white">
                   <tr>
-                    <td className="py-2 px-2 font-medium text-slate-800">Taxa Mínima de Água & Esgoto (Sanepar/Concessionária)</td>
+                    <td className="py-2 px-2 font-medium text-slate-800">
+                      Taxa Mínima de Água & Esgoto (
+                      <input
+                        type="text"
+                        value={composicaoAgua}
+                        onChange={(e) => setComposicaoAgua(e.target.value)}
+                        className="inline-block w-40 px-1 py-0.5 text-xs border-b border-transparent hover:border-slate-300 focus:border-sky-500 bg-transparent focus:bg-white focus:outline-none transition-all text-sky-800 font-bold"
+                      />
+                      )
+                    </td>
                     <td className="py-2 px-2 text-right">
                       <input
                         type="number"
@@ -2077,6 +1967,61 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
               excedenteAguaTotal={excedenteAguaTotal}
             />
           </div>
+
+          {/* 7. Taxa de Boleto */}
+          <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.taxaBoleto ? 'print:hidden opacity-60' : ''}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-emerald-300 hover:border-emerald-400 text-[11px] font-bold text-emerald-900 select-none shadow-2xs print:hidden">
+                  <input
+                    type="checkbox"
+                    checked={secoesRelatorioPDF.taxaBoleto}
+                    onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, taxaBoleto: e.target.checked }))}
+                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                  />
+                  <span>{secoesRelatorioPDF.taxaBoleto ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
+                </label>
+                <h4 className="font-bold text-[#2d5a32] text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#2d5a32]"></span>
+                  <span>7. Taxa de Boleto</span>
+                </h4>
+              </div>
+              <span className="text-xs font-mono font-bold text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                Total Previsto: {formatarMoeda(totalTaxaBoletoCalculado)}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-emerald-200 text-emerald-800 font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2">Descrição</th>
+                    <th className="py-2 px-2 w-48 text-right">Valor por Unidade (R$)</th>
+                    <th className="py-2 px-2 w-48 text-right">Valor Total Apurado (R$)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-emerald-200/60 bg-white">
+                  <tr>
+                    <td className="py-2 px-2 font-medium text-slate-800">
+                      Taxa de Emissão de Boleto (Cobrança)
+                    </td>
+                    <td className="py-2 px-2 text-right">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={taxaBoletoValor}
+                        onChange={(e) => setTaxaBoletoValor(parseFloat(e.target.value) || 0)}
+                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-slate-800 bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </td>
+                    <td className="py-2 px-2 text-right font-mono font-bold text-emerald-800">
+                      {formatarMoeda(totalTaxaBoletoCalculado)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Total Geral Card */}
@@ -2085,8 +2030,8 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <span className="text-emerald-300 print:text-[#2d5a32] text-xs font-bold uppercase tracking-wider">
               Total Geral de Despesas do Período - {mesReferencia}
             </span>
-            <p className="text-xs text-emerald-100/80 print:text-slate-600 mt-0.5">
-              Soma: 1. Cota Básica (Ordinárias): {formatarMoeda(totalOrdinarias)} | 2. Fundo Reserva: {formatarMoeda(totalFundoReservaCalculado)} | 3. Extraordinárias: {formatarMoeda(totalExtraordinarias)} | 4. Fundo Pintura: {formatarMoeda(totalFundoPinturaCalculado)} | 5. Fundo Obras: {formatarMoeda(totalFundoObrasCalculado)} | 6. Água: {formatarMoeda(totalAgua)}
+            <p className="text-xs text-emerald-100/80 mt-0.5 print:hidden">
+              Soma: 1. Cota Básica (Ordinárias): {formatarMoeda(totalOrdinarias)} | 2. Fundo Reserva: {formatarMoeda(totalFundoReservaCalculado)} | 3. Extraordinárias: {formatarMoeda(totalExtraordinarias)} | 4. Fundo Pintura: {formatarMoeda(totalFundoPinturaCalculado)} | 5. Fundo Obras: {formatarMoeda(totalFundoObrasCalculado)} | 6. Água: {formatarMoeda(totalAgua)} | 7. Taxa de Boleto: {formatarMoeda(totalTaxaBoletoCalculado)}
             </p>
           </div>
 
@@ -2135,17 +2080,192 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-[#1c3220] text-white font-bold text-[11px]">
-                <th className="py-3 px-3">Unidade</th>
-                <th className="py-3 px-2 text-center">Vencimento</th>
-                <th className="py-3 px-2 text-right">Taxa Boleto</th>
-                <th className="py-3 px-2 text-right">Cota Básica</th>
-                <th className="py-3 px-2 text-right">Fundo Reserva</th>
-                <th className="py-3 px-2 text-right">Desp. Extraordinárias</th>
-                <th className="py-3 px-2 text-right">Taxa Mín. Água</th>
-                <th className="py-3 px-2 text-right">Excedente Água</th>
-                <th className="py-3 px-2 text-right">Fundo Pintura</th>
-                <th className="py-3 px-2 text-right">Fundo Obras</th>
-                <th className="py-3 px-3 text-right bg-[#2d5a32]">Total Unidade (R$)</th>
+                {colunasPDF.unidade && (
+                  <th className="py-2 px-2 text-left group">
+                    <div className="flex flex-col items-start justify-center gap-1.5">
+                      <span>Unidade</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.unidade} onChange={(e) => setColunasPDF(prev => ({...prev, unidade: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.unidade && (
+                  <th className="py-2 px-2 text-left print:hidden group">
+                    <div className="flex flex-col items-start justify-center gap-1.5 opacity-50">
+                      <span>Unidade</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.unidade} onChange={(e) => setColunasPDF(prev => ({...prev, unidade: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.vencimento && (
+                  <th className="py-2 px-2 text-center group">
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <span>Vencimento</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.vencimento} onChange={(e) => setColunasPDF(prev => ({...prev, vencimento: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.vencimento && (
+                  <th className="py-2 px-2 text-center print:hidden group">
+                    <div className="flex flex-col items-center justify-center gap-1.5 opacity-50">
+                      <span>Vencimento</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.vencimento} onChange={(e) => setColunasPDF(prev => ({...prev, vencimento: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.taxaBoleto && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Taxa de boleto</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.taxaBoleto} onChange={(e) => setColunasPDF(prev => ({...prev, taxaBoleto: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.taxaBoleto && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Taxa de boleto</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.taxaBoleto} onChange={(e) => setColunasPDF(prev => ({...prev, taxaBoleto: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.cotaBasica && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Cota Basica</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.cotaBasica} onChange={(e) => setColunasPDF(prev => ({...prev, cotaBasica: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.cotaBasica && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Cota Basica</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.cotaBasica} onChange={(e) => setColunasPDF(prev => ({...prev, cotaBasica: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.despesaExtraordinaria && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Despesas Extraordinárias</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.despesaExtraordinaria} onChange={(e) => setColunasPDF(prev => ({...prev, despesaExtraordinaria: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.despesaExtraordinaria && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Despesas Extraordinárias</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.despesaExtraordinaria} onChange={(e) => setColunasPDF(prev => ({...prev, despesaExtraordinaria: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.fundoObras && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Fundo Obras</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.fundoObras} onChange={(e) => setColunasPDF(prev => ({...prev, fundoObras: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.fundoObras && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Fundo Obras</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.fundoObras} onChange={(e) => setColunasPDF(prev => ({...prev, fundoObras: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.fundoReserva && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Fundo de Reserva</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.fundoReserva} onChange={(e) => setColunasPDF(prev => ({...prev, fundoReserva: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.fundoReserva && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Fundo de Reserva</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.fundoReserva} onChange={(e) => setColunasPDF(prev => ({...prev, fundoReserva: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.fundoPintura && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Fundo de Pintura</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.fundoPintura} onChange={(e) => setColunasPDF(prev => ({...prev, fundoPintura: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.fundoPintura && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Fundo de Pintura</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.fundoPintura} onChange={(e) => setColunasPDF(prev => ({...prev, fundoPintura: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.taxaMinAgua && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Taxa Minima Sanepar</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.taxaMinAgua} onChange={(e) => setColunasPDF(prev => ({...prev, taxaMinAgua: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.taxaMinAgua && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Taxa Minima Sanepar</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.taxaMinAgua} onChange={(e) => setColunasPDF(prev => ({...prev, taxaMinAgua: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.excedenteAgua && (
+                  <th className="py-2 px-2 text-right group">
+                    <div className="flex flex-col items-end justify-center gap-1.5">
+                      <span>Excedente Sanepar</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.excedenteAgua} onChange={(e) => setColunasPDF(prev => ({...prev, excedenteAgua: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.excedenteAgua && (
+                  <th className="py-2 px-2 text-right print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50">
+                      <span>Excedente Sanepar</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.excedenteAgua} onChange={(e) => setColunasPDF(prev => ({...prev, excedenteAgua: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#2d5a32]" />
+                    </div>
+                  </th>
+                )}
+
+                {colunasPDF.totalUnidade && (
+                  <th className="py-2 px-3 text-right bg-[#2d5a32] group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 text-white">
+                      <span>Total por Unidade</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.totalUnidade} onChange={(e) => setColunasPDF(prev => ({...prev, totalUnidade: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#1c3220]" />
+                    </div>
+                  </th>
+                )}
+                {!colunasPDF.totalUnidade && (
+                  <th className="py-2 px-3 text-right bg-[#2d5a32] print:hidden group">
+                    <div className="flex flex-col items-end justify-center gap-1.5 opacity-50 text-white">
+                      <span>Total por Unidade</span>
+                      <input type="checkbox" title="Incluir no PDF" checked={colunasPDF.totalUnidade} onChange={(e) => setColunasPDF(prev => ({...prev, totalUnidade: e.target.checked}))} className="w-3 h-3 cursor-pointer print:hidden accent-[#1c3220]" />
+                    </div>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -2154,53 +2274,118 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                   key={row.unidadeId}
                   className={idx % 2 === 0 ? 'bg-white hover:bg-emerald-50/50' : 'bg-slate-50/60 hover:bg-emerald-50/50'}
                 >
-                  <td className="py-1.5 px-2">
-                    <input
-                      type="text"
-                      value={row.nomeUnidade}
-                      onChange={(e) => handleNomeUnidadeChange(row.unidadeId, e.target.value)}
-                      title="Clique para editar o nome ou número da unidade"
-                      className="w-full min-w-[85px] max-w-[140px] px-2 py-1 text-xs font-bold text-slate-800 bg-white/80 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-400 focus:border-[#2d5a32] rounded-lg transition-colors focus:ring-1 focus:ring-[#2d5a32] focus:outline-none print:border-none print:bg-transparent print:p-0 print:text-xs print:font-bold"
-                    />
-                  </td>
-                  <td className="py-2.5 px-2 text-center text-slate-600 font-mono text-[11px]">{row.vencimento}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.taxaBoleto)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800">{formatarMoeda(row.cotaBasica)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoReserva)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-black font-medium">{formatarMoeda(row.despesaExtra)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-black">{formatarMoeda(row.taxaMinAguaUnidade)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-black">{formatarMoeda(row.excedenteAguaUnidade)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-black">{formatarMoeda(row.fundoPintura)}</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-black">{formatarMoeda(row.fundoObras)}</td>
-                  <td className="py-2.5 px-3 text-right font-mono font-black text-[#2d5a32] bg-emerald-50/80">
-                    {formatarMoeda(row.totalUnidade)}
-                  </td>
+                  {colunasPDF.unidade && (
+                    <td className="py-1.5 px-2">
+                      <input
+                        type="text"
+                        value={row.nomeUnidade}
+                        onChange={(e) => handleNomeUnidadeChange(row.unidadeId, e.target.value)}
+                        title="Clique para editar o nome ou número da unidade"
+                        className="w-full min-w-[85px] max-w-[140px] px-2 py-1 text-xs font-bold text-slate-800 bg-white/80 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-400 focus:border-[#2d5a32] rounded-lg transition-colors focus:ring-1 focus:ring-[#2d5a32] focus:outline-none print:border-none print:bg-transparent print:p-0 print:text-xs print:font-bold"
+                      />
+                    </td>
+                  )}
+                  {!colunasPDF.unidade && (
+                    <td className="py-1.5 px-2 print:hidden opacity-30">
+                      <span className="px-2 py-1 text-xs font-bold text-slate-800 bg-transparent">{row.nomeUnidade}</span>
+                    </td>
+                  )}
+                  {colunasPDF.vencimento && <td className="py-2.5 px-2 text-center text-slate-600 font-mono text-[11px]">{row.vencimento}</td>}
+                  {!colunasPDF.vencimento && <td className="py-2.5 px-2 text-center text-slate-600 font-mono text-[11px] opacity-30 print:hidden">{row.vencimento}</td>}
+                  
+                  {colunasPDF.taxaBoleto && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.taxaBoleto)}</td>}
+                  {!colunasPDF.taxaBoleto && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.taxaBoleto)}</td>}
+                  
+                  {colunasPDF.cotaBasica && <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800">{formatarMoeda(row.cotaBasica)}</td>}
+                  {!colunasPDF.cotaBasica && <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800 opacity-30 print:hidden">{formatarMoeda(row.cotaBasica)}</td>}
+                  
+                  {colunasPDF.despesaExtraordinaria && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.despesaExtra || 0)}</td>}
+                  {!colunasPDF.despesaExtraordinaria && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.despesaExtra || 0)}</td>}
+
+                  {colunasPDF.fundoObras && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoObras)}</td>}
+                  {!colunasPDF.fundoObras && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.fundoObras)}</td>}
+
+                  {colunasPDF.fundoReserva && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoReserva)}</td>}
+                  {!colunasPDF.fundoReserva && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.fundoReserva)}</td>}
+                  
+                  {colunasPDF.fundoPintura && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoPintura)}</td>}
+                  {!colunasPDF.fundoPintura && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.fundoPintura)}</td>}
+
+                  {colunasPDF.taxaMinAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.taxaMinAguaUnidade)}</td>}
+                  {!colunasPDF.taxaMinAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.taxaMinAguaUnidade)}</td>}
+                  
+                  {colunasPDF.excedenteAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.excedenteAguaUnidade)}</td>}
+                  {!colunasPDF.excedenteAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.excedenteAguaUnidade)}</td>}
+                  
+                  {colunasPDF.totalUnidade && (
+                    <td className="py-2.5 px-3 text-right font-mono font-black text-[#2d5a32] bg-emerald-50/80">
+                      {formatarMoeda(row.totalUnidade)}
+                    </td>
+                  )}
+                  {!colunasPDF.totalUnidade && (
+                    <td className="py-2.5 px-3 text-right font-mono font-black text-[#2d5a32] bg-emerald-50/80 opacity-30 print:hidden">
+                      {formatarMoeda(row.totalUnidade)}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="bg-slate-800 text-white font-bold text-xs">
-                <td colSpan={2} className="py-3 px-3 uppercase text-right tracking-wider text-white">
-                  Soma Totais - {numeroUnidades} un:
-                </td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.taxaBoleto)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.cotaBasica)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.fundoReserva)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.despesaExtra)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.taxaMinAguaUnidade)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.excedenteAguaUnidade)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.fundoPintura)}</td>
-                <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.fundoObras)}</td>
-                <td className="py-3 px-3 text-right font-mono font-black text-emerald-300 bg-slate-900 text-sm">
-                  {formatarMoeda(totaisDemonstrativo.totalGeral)}
-                </td>
+                {colunasPDF.unidade && (
+                  <td className="py-3 px-3 uppercase tracking-wider text-white">
+                    Soma - {numeroUnidades} un
+                  </td>
+                )}
+                {!colunasPDF.unidade && (
+                  <td className="py-3 px-3 uppercase tracking-wider text-white opacity-30 print:hidden">
+                    Soma - {numeroUnidades} un
+                  </td>
+                )}
+                {colunasPDF.vencimento && <td></td>}
+                {!colunasPDF.vencimento && <td className="print:hidden"></td>}
+
+                {colunasPDF.taxaBoleto && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.taxaBoleto)}</td>}
+                {!colunasPDF.taxaBoleto && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.taxaBoleto)}</td>}
+                
+                {colunasPDF.cotaBasica && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.cotaBasica)}</td>}
+                {!colunasPDF.cotaBasica && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.cotaBasica)}</td>}
+                
+                {colunasPDF.despesaExtraordinaria && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.despesaExtra)}</td>}
+                {!colunasPDF.despesaExtraordinaria && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.despesaExtra)}</td>}
+                
+                {colunasPDF.fundoObras && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.fundoObras)}</td>}
+                {!colunasPDF.fundoObras && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.fundoObras)}</td>}
+
+                {colunasPDF.fundoReserva && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.fundoReserva)}</td>}
+                {!colunasPDF.fundoReserva && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.fundoReserva)}</td>}
+                
+                {colunasPDF.fundoPintura && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.fundoPintura)}</td>}
+                {!colunasPDF.fundoPintura && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.fundoPintura)}</td>}
+
+                {colunasPDF.taxaMinAgua && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.taxaMinAguaUnidade)}</td>}
+                {!colunasPDF.taxaMinAgua && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.taxaMinAguaUnidade)}</td>}
+                
+                {colunasPDF.excedenteAgua && <td className="py-3 px-2 text-right font-mono text-white">{formatarMoeda(totaisDemonstrativo.excedenteAguaUnidade)}</td>}
+                {!colunasPDF.excedenteAgua && <td className="py-3 px-2 text-right font-mono text-white opacity-30 print:hidden">{formatarMoeda(totaisDemonstrativo.excedenteAguaUnidade)}</td>}
+                
+                {colunasPDF.totalUnidade && (
+                  <td className="py-3 px-3 text-right font-mono font-black text-emerald-300 bg-slate-900 text-sm">
+                    {formatarMoeda(totaisDemonstrativo.totalGeral)}
+                  </td>
+                )}
+                {!colunasPDF.totalUnidade && (
+                  <td className="py-3 px-3 text-right font-mono font-black text-emerald-300 bg-slate-900 text-sm opacity-30 print:hidden">
+                    {formatarMoeda(totaisDemonstrativo.totalGeral)}
+                  </td>
+                )}
               </tr>
             </tfoot>
           </table>
         </div>
 
         {/* OBSERVAÇÕES DE AUDITORIA CARD */}
-        <div className="pt-2">
+        <div className="pt-2 print:hidden">
           {temInconsistenciaFracao || temDiferencaValor ? (
             <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-xl flex items-start gap-3 text-xs text-amber-900 shadow-2xs">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />

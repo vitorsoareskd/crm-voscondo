@@ -3,8 +3,8 @@ import { Building2, Calculator, ShieldCheck, Wallet, PieChart, Users, CheckSquar
 import { VosLogo } from './VosLogo';
 
 interface HeaderProps {
-  activeTab: 'crm' | 'erp' | 'treasury' | 'sqlite';
-  setActiveTab: (tab: 'crm' | 'erp' | 'treasury' | 'sqlite') => void;
+  activeTab: 'crm' | 'erp' | 'treasury';
+  setActiveTab: (tab: 'crm' | 'erp' | 'treasury') => void;
   subTab: string;
   setSubTab: (subTab: string) => void;
   onLogout?: () => void;
@@ -179,21 +179,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span>API</span>
             </button>
 
-            {/* Banco SQLite Tab */}
-            <button
-              onClick={() => {
-                setActiveTab('sqlite');
-                setSubTab('dashboard');
-              }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                activeTab === 'sqlite'
-                  ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
-                  : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
-              }`}
-            >
-              <Database className="w-4 h-4 text-amber-400" />
-              <span>Banco SQLite</span>
-            </button>
           </nav>
         </div>
       </div>
@@ -280,6 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <span>Relatórios</span>
               </button>
+
             </div>
           )}
 

@@ -574,7 +574,7 @@ export const CRMModule: React.FC<CRMModuleProps> = ({
           {/* BOTTOM SECTION: 1.4 Visualização Kanban */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
+<div>
                 <h3 className="text-lg font-bold text-[#1c3220]">1.4 Funil Comercial (Kanban de Orçamentos)</h3>
                 <p className="text-xs text-slate-500">Gerencie a transição das negociações do orçamento até o contrato finalizado</p>
               </div>
@@ -583,68 +583,62 @@ export const CRMModule: React.FC<CRMModuleProps> = ({
               </span>
             </div>
 
-            {/* Kanban Stages as Horizontal Rows */}
-            <div className="space-y-6">
+            {/* Kanban Stages as 3 Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               
-              {/* Row 1: Orçamentos / Cotação */}
-              <div className="bg-[#f2f5f1] p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-300 pb-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3.5 h-3.5 rounded-full bg-amber-500 shrink-0"></span>
-                    <h4 className="font-bold text-sm uppercase tracking-wider text-slate-800">1. Orçamentos & Cotações</h4>
+              {/* Coluna 1: Prospecção (Cotação/Interessado) */}
+              <div className="bg-[#f2f5f1] p-4 rounded-2xl border border-slate-200 flex flex-col gap-3 min-h-[400px]">
+                <div className="flex items-center justify-between border-b border-slate-300 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-amber-500"></span>
+                    <h4 className="font-bold text-sm uppercase text-slate-800">Prospecção</h4>
                   </div>
-                  <span className="bg-amber-100 text-amber-800 font-bold px-3 py-0.5 rounded-full text-xs text-center">
-                    {orcamentos.length} {orcamentos.length === 1 ? 'item' : 'itens'}
+                  <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full text-xs">
+                    {orcamentos.length}
                   </span>
                 </div>
 
                 {orcamentos.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-4 text-center">Nenhum orçamento nesta fase</p>
+                  <p className="text-xs text-slate-400 italic text-center mt-4">Vazio</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-3">
                     {orcamentos.map((item) => (
-                      <div key={item.id} className="bg-white p-3 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        {/* Condominium info */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <span className="text-[10px] font-mono text-slate-400 font-bold shrink-0">{item.id}</span>
-                          <div className="min-w-0 flex-1">
-                            <h5 className="font-bold text-slate-900 text-sm truncate">{item.nome}</h5>
-                            <p className="text-xs text-slate-500">{item.unidades} un • Complexidade {item.complexidade}</p>
-                          </div>
-                        </div>
-
-                        {/* Plan & Pricing & Actions */}
-                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
-                          <span className="bg-[#e8f0e6] text-[#2d5a32] text-[10px] font-bold px-2.5 py-1 rounded-full text-center shrink-0">
+                      <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col gap-2">
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] font-mono text-slate-400 font-bold">{item.id}</span>
+                          <span className="bg-[#e8f0e6] text-[#2d5a32] text-[10px] font-bold px-2 py-0.5 rounded-full">
                             {item.plano}
                           </span>
-                          <span className="font-bold text-emerald-800 font-mono text-xs sm:text-sm shrink-0 min-w-[90px] text-right">
-                            {formatarMoeda(item.mensalidadeCalculada)}/mês
-                          </span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => setSelectedCondoForDoc(item)}
-                              title="Gerar Carta Proposta e Contrato PDF"
-                              className="px-2.5 py-1.5 bg-[#1c3220] hover:bg-[#2d5a32] text-white rounded-lg text-[11px] font-bold inline-flex items-center justify-center text-center gap-1 transition-colors"
-                            >
-                              <FileCheck className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-                              <span className="text-center">Proposta</span>
-                            </button>
-                            <button
-                              onClick={() => handleMoverStatus(item.id, 'Em transição')}
-                              title="Avançar para Em Transição"
-                              className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg transition-colors flex items-center justify-center"
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleMoverStatus(item.id, 'Perdido')}
-                              title="Marcar como Perdido"
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition-colors flex items-center justify-center"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-slate-900 text-sm leading-tight">{item.nome}</h5>
+                          <p className="text-xs text-slate-500">{item.unidades} un • Cmplx: {item.complexidade}</p>
+                        </div>
+                        <div className="font-bold text-emerald-800 text-sm mt-1">
+                          {formatarMoeda(item.mensalidadeCalculada)}/mês
+                        </div>
+                        <div className="flex gap-1.5 justify-end border-t border-slate-100 pt-2 mt-1">
+                          <button
+                            onClick={() => setSelectedCondoForDoc(item)}
+                            title="Gerar Proposta"
+                            className="p-1.5 bg-[#1c3220] hover:bg-[#2d5a32] text-white rounded-lg transition-colors flex-1 flex justify-center items-center gap-1 text-[10px] font-bold"
+                          >
+                            <FileCheck className="w-3 h-3 text-emerald-300" /> Proposta
+                          </button>
+                          <button
+                            onClick={() => handleMoverStatus(item.id, 'Em transição')}
+                            title="Avançar para Negociação"
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg flex items-center justify-center cursor-pointer"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleMoverStatus(item.id, 'Perdido')}
+                            title="Marcar como Perdido"
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg flex items-center justify-center cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -652,66 +646,59 @@ export const CRMModule: React.FC<CRMModuleProps> = ({
                 )}
               </div>
 
-              {/* Row 2: Em Transição */}
-              <div className="bg-[#f2f5f1] p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-300 pb-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3.5 h-3.5 rounded-full bg-blue-500 shrink-0"></span>
-                    <h4 className="font-bold text-sm uppercase tracking-wider text-slate-800">2. Em Transição (Aprovação)</h4>
+              {/* Coluna 2: Negociação (Em Transição) */}
+              <div className="bg-[#f2f5f1] p-4 rounded-2xl border border-slate-200 flex flex-col gap-3 min-h-[400px]">
+                <div className="flex items-center justify-between border-b border-slate-300 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <h4 className="font-bold text-sm uppercase text-slate-800">Negociação</h4>
                   </div>
-                  <span className="bg-blue-100 text-blue-800 font-bold px-3 py-0.5 rounded-full text-xs text-center">
-                    {emTransicao.length} {emTransicao.length === 1 ? 'item' : 'itens'}
+                  <span className="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full text-xs">
+                    {emTransicao.length}
                   </span>
                 </div>
 
                 {emTransicao.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-4 text-center">Nenhum cliente em transição</p>
+                  <p className="text-xs text-slate-400 italic text-center mt-4">Vazio</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-3">
                     {emTransicao.map((item) => (
-                      <div key={item.id} className="bg-white p-3 sm:px-4 sm:py-3 rounded-xl border border-blue-200/80 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        {/* Condominium info */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <span className="text-[10px] font-mono text-slate-400 font-bold shrink-0">{item.id}</span>
-                          <div className="min-w-0 flex-1">
-                            <h5 className="font-bold text-slate-900 text-sm truncate">{item.nome}</h5>
-                            <p className="text-xs text-slate-500">{item.unidades} un • Síndico: {item.sindicoResponsavel}</p>
-                          </div>
-                        </div>
-
-                        {/* Plan & Pricing & Actions */}
-                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
-                          <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-2.5 py-1 rounded-full text-center shrink-0">
+                      <div key={item.id} className="bg-white p-3 rounded-xl border border-blue-200/80 shadow-xs flex flex-col gap-2 border-l-4 border-l-blue-400">
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] font-mono text-slate-400 font-bold">{item.id}</span>
+                          <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
                             {item.plano}
                           </span>
-                          <span className="font-bold text-emerald-800 font-mono text-xs sm:text-sm shrink-0 min-w-[90px] text-right">
-                            {formatarMoeda(item.mensalidadeCalculada)}/mês
-                          </span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => setSelectedCondoForDoc(item)}
-                              title="Visualizar Contrato em PDF"
-                              className="px-2.5 py-1.5 bg-[#1c3220] hover:bg-[#2d5a32] text-white rounded-lg text-[11px] font-bold inline-flex items-center justify-center text-center gap-1 transition-colors"
-                            >
-                              <FileCheck className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-                              <span className="text-center">Ver Contrato</span>
-                            </button>
-                            <button
-                              onClick={() => handleMoverStatus(item.id, 'Cliente Fidelizado')}
-                              title="Aprovar e Tornar Cliente Fidelizado"
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-bold text-xs inline-flex items-center justify-center text-center gap-1"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                              <span className="text-center">Fechar</span>
-                            </button>
-                            <button
-                              onClick={() => handleMoverStatus(item.id, 'Perdido')}
-                              title="Marcar como Perdido"
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition-colors flex items-center justify-center"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-slate-900 text-sm leading-tight">{item.nome}</h5>
+                          <p className="text-xs text-slate-500">{item.unidades} un • Síndico: {item.sindicoResponsavel}</p>
+                        </div>
+                        <div className="font-bold text-emerald-800 text-sm mt-1">
+                          {formatarMoeda(item.mensalidadeCalculada)}/mês
+                        </div>
+                        <div className="flex gap-1.5 justify-end border-t border-slate-100 pt-2 mt-1">
+                          <button
+                            onClick={() => setSelectedCondoForDoc(item)}
+                            title="Abrir Proposta"
+                            className="p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg flex items-center justify-center cursor-pointer"
+                          >
+                            <FileCheck className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleMoverStatus(item.id, 'Cliente Fidelizado')}
+                            title="Fechar Negócio"
+                            className="flex-1 p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Fechar
+                          </button>
+                          <button
+                            onClick={() => handleMoverStatus(item.id, 'Perdido')}
+                            title="Marcar como Perdido"
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg flex items-center justify-center cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -719,93 +706,81 @@ export const CRMModule: React.FC<CRMModuleProps> = ({
                 )}
               </div>
 
-              {/* Row 3: Finalizados / Clientes Fidelizados */}
-              <div className="bg-[#f2f5f1] p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-300 pb-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 shrink-0"></span>
-                    <h4 className="font-bold text-sm uppercase tracking-wider text-slate-800">3. Finalizados / Clientes</h4>
+              {/* Coluna 3: Fechado (Finalizados) */}
+              <div className="bg-[#f2f5f1] p-4 rounded-2xl border border-slate-200 flex flex-col gap-3 min-h-[400px]">
+                <div className="flex items-center justify-between border-b border-slate-300 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-emerald-600"></span>
+                    <h4 className="font-bold text-sm uppercase text-slate-800">Fechado</h4>
                   </div>
-                  <span className="bg-emerald-100 text-emerald-800 font-bold px-3 py-0.5 rounded-full text-xs text-center">
-                    {finalizados.length} {finalizados.length === 1 ? 'item' : 'itens'}
+                  <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-xs">
+                    {finalizados.length}
                   </span>
                 </div>
-
+                
                 {syncNotice && (
-                  <div className="bg-emerald-800 text-emerald-100 p-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
-                      <span>{syncNotice}</span>
-                    </div>
-                    <button onClick={() => setSyncNotice(null)} className="p-1 text-emerald-300 hover:text-white">
-                      <X className="w-4 h-4" />
+                  <div className="bg-emerald-800 text-emerald-100 p-2 rounded-lg text-[10px] font-semibold flex items-start justify-between shadow-xs">
+                    <span>{syncNotice}</span>
+                    <button onClick={() => setSyncNotice(null)} className="p-0.5 text-emerald-300 hover:text-white cursor-pointer">
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 )}
 
                 {finalizados.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-4 text-center">Nenhum contrato finalizado ainda</p>
+                  <p className="text-xs text-slate-400 italic text-center mt-4">Vazio</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-3">
                     {finalizados.map((item) => (
-                      <div key={item.id} className="bg-white p-3 sm:px-4 sm:py-3 rounded-xl border border-emerald-200/80 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        {/* Condominium info */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div key={item.id} className="bg-white p-3 rounded-xl border border-emerald-200/80 shadow-xs flex flex-col gap-2 border-l-4 border-l-emerald-500">
+                        <div className="flex justify-between items-start">
                           <button
                             onClick={() => setEditingIdCondo({ id: item.id, newId: item.id })}
-                            title="Clique para editar/personalizar o ID do Condomínio"
-                            className="bg-slate-900 hover:bg-slate-800 text-emerald-300 font-mono text-[11px] px-2.5 py-1 rounded-lg font-bold shrink-0 flex items-center gap-1 transition-colors border border-slate-700"
+                            title="Editar ID"
+                            className="bg-slate-900 text-emerald-300 font-mono text-[10px] px-1.5 py-0.5 rounded cursor-pointer border border-slate-700 flex items-center gap-1"
                           >
-                            <span>{item.id}</span>
-                            <Edit3 className="w-3 h-3 text-slate-400" />
+                            {item.id} <Edit3 className="w-2.5 h-2.5" />
                           </button>
-                          <div className="min-w-0 flex-1">
-                            <h5 className="font-bold text-slate-900 text-sm truncate">{item.nome}</h5>
-                            <p className="text-xs text-slate-500">{item.unidades} un • CNPJ: {item.cnpj}</p>
-                          </div>
-                        </div>
-
-                        {/* Plan & Pricing & Actions */}
-                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
-                          <span className="bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-full text-center shrink-0">
+                          <span className="bg-emerald-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                             {item.plano}
                           </span>
-                          <span className="font-bold text-[#2d5a32] font-mono text-xs sm:text-sm shrink-0 min-w-[90px] text-right">
-                            {formatarMoeda(item.mensalidadeCalculada)}/mês
-                          </span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => {
-                                setSyncNotice(`Condomínio [${item.id}] ${item.nome} está vinculado! Acesse a aba "ERP -> 2.1 Perfil Completo" para puxar e visualizar os dados.`);
-                              }}
-                              title="Disponibilizar e puxar dados no Bloco 2 (Perfil Completo do Cliente)"
-                              className="px-2.5 py-1.5 bg-[#e8f0e6] hover:bg-emerald-200 text-[#2d5a32] rounded-lg text-[11px] font-bold inline-flex items-center justify-center text-center gap-1 transition-colors border border-[#2d5a32]/20"
-                            >
-                              <Building2 className="w-3.5 h-3.5 text-[#2d5a32] shrink-0" />
-                              <span className="text-center">Puxar p/ Bloco 2</span>
-                            </button>
-                            <button
-                              onClick={() => setSelectedCondoForDoc(item)}
-                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-bold inline-flex items-center justify-center text-center gap-1 transition-colors"
-                            >
-                              <FileCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                              <span className="text-center">Acessar Doc</span>
-                            </button>
-                            <button
-                              onClick={() => handleMoverStatus(item.id, 'Perdido')}
-                              title="Marcar como Perdido"
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition-colors flex items-center justify-center"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-slate-900 text-sm leading-tight">{item.nome}</h5>
+                          <p className="text-xs text-slate-500">{item.unidades} un • CNPJ: {item.cnpj}</p>
+                        </div>
+                        <div className="font-bold text-[#2d5a32] text-sm mt-1">
+                          {formatarMoeda(item.mensalidadeCalculada)}/mês
+                        </div>
+                        <div className="flex gap-1.5 justify-end border-t border-slate-100 pt-2 mt-1">
+                          <button
+                            onClick={() => setSyncNotice(`Condomínio [${item.id}] ${item.nome} vinculado!`)}
+                            title="Disponibilizar no Bloco 2"
+                            className="p-1.5 bg-[#e8f0e6] hover:bg-emerald-200 text-[#2d5a32] rounded-lg flex items-center justify-center cursor-pointer"
+                          >
+                            <Building2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setSelectedCondoForDoc(item)}
+                            title="Acessar Contrato/Proposta"
+                            className="flex-1 p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold cursor-pointer"
+                          >
+                            <FileCheck className="w-3 h-3 text-emerald-700" /> Contrato
+                          </button>
+                          <button
+                            onClick={() => handleMoverStatus(item.id, 'Perdido')}
+                            title="Marcar como Perdido"
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg flex items-center justify-center cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-
+            </div>
               {/* Row 4: Perdidos */}
               <div className="bg-[#f2f5f1] p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-300 pb-2.5">
@@ -926,8 +901,6 @@ export const CRMModule: React.FC<CRMModuleProps> = ({
                   </div>
                 )}
               </div>
-
-            </div>
           </div>
         </>
       )}

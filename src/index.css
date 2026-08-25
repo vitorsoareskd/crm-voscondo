@@ -32,6 +32,19 @@
   scrollbar-color: rgba(36, 75, 42, 0.45) rgba(16, 32, 19, 0.08);
 }
 
+/* ── Remove setas/spinners dos inputs numéricos ────────────────────────── */
+/* Chrome, Safari, Edge, Opera */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 @media print {
   body {
     background: #ffffff !important;

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Condominio, StatusFunil, Complexidade, Plano, RegistroHistoricoCaixa } from '../../types';
-import { calcularSaudeCondominio, formatarMoeda, calcularMensalidade, obterMetaItemCaixa } from '../../utils/pricingEngine';
-import { X, Save, Eye, EyeOff, ShieldCheck, Activity, Building, Landmark, DollarSign, Calendar, Clock, MessageSquare, Target, RefreshCw, History, Plus, Trash2, Maximize2, FileText, Check, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Condominio, StatusFunil, Complexidade, Plano, RegistroHistoricoCaixa, TemplateRelatorio } from '../../types';
+import { calcularSaudeCondominio, formatarMoeda, calcularMensalidade } from '../../utils/pricingEngine';
+import { X, Save, Eye, EyeOff, ShieldCheck, Activity, Building, Landmark, DollarSign, Clock, MessageSquare, Target, RefreshCw, History, Plus, Trash2, Maximize2, FileText, Check, Copy, Settings } from 'lucide-react';
+import TemplatesRelatorioModal from './TemplatesRelatorioModal';
 
 interface CondominioModalProps {
   condominio?: Condominio | null;
@@ -22,7 +23,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
   const [telefone, setTelefone] = useState(condominio?.numeroCondominio || '');
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
-  // Financial Reserves
   const [livreCaixa, setLivreCaixa] = useState<number>(condominio?.livreCaixa || 10000);
   const [fundoObras, setFundoObras] = useState<number>(condominio?.fundoObras || 5000);
   const [fundoPintura, setFundoPintura] = useState<number>(condominio?.fundoPintura || 2000);
@@ -30,12 +30,10 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
   const [gastoMedio, setGastoMedio] = useState<number>(condominio?.gastoMedioMensal || 8000);
   const [rendimentoMedio, setRendimentoMedio] = useState<number>(condominio?.rendimentoMedioMensal || 9500);
 
-  // Anotações Gerais do Condomínio
   const [anotacoes, setAnotacoes] = useState<string>(condominio?.anotacoes || '');
   const [modalAnotacoesAberto, setModalAnotacoesAberto] = useState(false);
   const [copiadoFeedback, setCopiadoFeedback] = useState(false);
 
-  // 2.2 Termômetro Data e Hora da Última Alteração
   const obterDataHoraAtual = () => {
     return new Date().toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -50,7 +48,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
     condominio?.dataUltimaAlteracaoCaixa || obterDataHoraAtual()
   );
 
-  // Frases de Observação por Fundo
   const [fraseLivreCaixa, setFraseLivreCaixa] = useState<string>(
     condominio?.fraseLivreCaixa || 'Suficiente para cobertura de despesas operacionais correntes.'
   );
@@ -64,7 +61,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
     condominio?.fraseFundoReforma || 'Reserva destinada a grandes intervenções prediais.'
   );
 
-  // Metas customizadas/opcionais
   const [metaLivreCaixaCustom, setMetaLivreCaixaCustom] = useState<number>(
     condominio?.metaLivreCaixaCustom || 0
   );
@@ -75,7 +71,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
     condominio?.metaFundoPinturaCustom || 0
   );
 
-  // Histórico de Alterações do Caixa (Mantendo os 5 últimos registros)
   const [historicoCaixa, setHistoricoCaixa] = useState<RegistroHistoricoCaixa[]>(() => {
     if (condominio?.historicoCaixa && condominio.historicoCaixa.length > 0) {
       return condominio.historicoCaixa.slice(0, 5);
@@ -98,7 +93,11 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
     }];
   });
 
-  // Função para salvar snapshot atual no histórico (limite 5 itens)
+  const [templatesRelatorio, setTemplatesRelatorio] = useState<TemplateRelatorio | undefined>(
+    condominio?.templatesRelatorio
+  );
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+
   const registrarSnapshotHistorico = (dataCustomizada?: string, obsCustomizada?: string) => {
     const dataRef = dataCustomizada || dataUltimaAlteracaoCaixa || obterDataHoraAtual();
     const totalRes = Number(livreCaixa) + Number(fundoObras) + Number(fundoPintura) + Number(fundoReforma);
@@ -115,20 +114,17 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
     };
 
     setHistoricoCaixa((prev) => {
-      // Remover itens com a mesma data/hora exata para evitar duplicatas
       const filtrados = prev.filter((item) => item.dataHora !== dataRef);
       return [novoRegistro, ...filtrados].slice(0, 5);
     });
   };
 
-  // Helper quando valores do caixa mudam ou botão de 'Atualizar p/ Agora' é clicado
   const marcarAlteracaoCaixa = () => {
     const novaData = obterDataHoraAtual();
     setDataUltimaAlteracaoCaixa(novaData);
     registrarSnapshotHistorico(novaData, 'Atualização com timestamp de agora');
   };
 
-  // Function to pull data from a CRM item selected by ID
   const handlePuxarDadosCrm = (idSelecionado: string) => {
     if (!idSelecionado) return;
     const item = allCondominios.find((c) => c.id === idSelecionado);
@@ -164,22 +160,23 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
       if (item.metaFundoPinturaCustom !== undefined) setMetaFundoPinturaCustom(item.metaFundoPinturaCustom);
       if (item.anotacoes !== undefined) setAnotacoes(item.anotacoes);
 
+      if (item.templatesRelatorio) {
+        setTemplatesRelatorio(item.templatesRelatorio);
+      }
+
       setImportMessage(`✓ Dados do ID [${item.id}] - ${item.nome} puxados com sucesso do CRM!`);
     }
   };
   
-  // Banking
   const [banco, setBanco] = useState(condominio?.banco || 'Itaú');
   const [agenciaEConta, setAgenciaEConta] = useState(condominio?.agenciaEConta || '');
   const [senhaBanco, setSenhaBanco] = useState(condominio?.senhaBanco || '');
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
-  // CRM
   const [complexidade, setComplexidade] = useState<Complexidade>(condominio?.complexidade || 'Tranquilo');
   const [plano, setPlano] = useState<Plano>(condominio?.plano || 'Vos 360');
   const [fatorAjuste, setFatorAjuste] = useState<number>(condominio?.fatorAjuste || 1.0);
 
-  // Health Calculation
   const saude = calcularSaudeCondominio(
     livreCaixa,
     fundoObras,
@@ -194,7 +191,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
 
     const calcMensalidade = calcularMensalidade(unidades, complexidade, plano, fatorAjuste);
 
-    // Garantir que o estado atual de caixa esteja no histórico
     let historicoAtualizado = [...historicoCaixa];
     const totRes = Number(livreCaixa) + Number(fundoObras) + Number(fundoPintura) + Number(fundoReforma);
     const dataRef = dataUltimaAlteracaoCaixa || obterDataHoraAtual();
@@ -247,7 +243,8 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
       metaFundoObrasCustom,
       metaFundoPinturaCustom,
       anotacoes,
-      historicoCaixa: historicoAtualizado
+      historicoCaixa: historicoAtualizado,
+      templatesRelatorio
     };
 
     onSave(updatedCondo);
@@ -256,7 +253,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-        {/* Modal Header */}
         <div className="bg-[#1c3220] text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building className="w-5 h-5 text-emerald-300" />
@@ -269,10 +265,7 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
           </button>
         </div>
 
-        {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 text-xs text-slate-800">
-          
-          {/* Quick Pull CRM Data Selector */}
           {allCondominios.length > 0 && (
             <div className="bg-[#e8f0e6] p-3.5 rounded-xl border border-[#2d5a32]/30 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -300,7 +293,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
             </div>
           )}
 
-          {/* Section 1: Dados Básicos */}
           <div className="space-y-3">
             <h4 className="font-bold text-[#1c3220] border-b pb-1 text-sm flex items-center gap-2">
               <Building className="w-4 h-4 text-[#2d5a32]" />
@@ -401,7 +393,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                 />
               </div>
 
-              {/* Caixa de Anotações em Branco com Botão para Abrir Nova Janela Expandida */}
               <div className="md:col-span-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-1">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
@@ -437,7 +428,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
             </div>
           </div>
 
-          {/* Section 2: Dados Bancários (Com Segurança) */}
           <div className="space-y-3">
             <h4 className="font-bold text-[#1c3220] border-b pb-1 text-sm flex items-center gap-2">
               <Landmark className="w-4 h-4 text-[#2d5a32]" />
@@ -487,7 +477,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
             </div>
           </div>
 
-          {/* Section 3: 2.2 Termômetro de Saúde Financeira */}
           <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
               <div className="flex items-center gap-2">
@@ -498,14 +487,12 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
               </div>
               
               <div className="flex items-center gap-2">
-                {/* Score badge */}
                 <span className="font-bold text-xs px-3 py-1 rounded-full text-white font-mono shadow-xs" style={{ backgroundColor: saude.cor }}>
                   Nota Geral: {saude.score}/10 • {saude.status}
                 </span>
               </div>
             </div>
 
-            {/* Data da última alteração do caixa */}
             <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2 text-slate-700">
                 <Clock className="w-4 h-4 text-[#2d5a32]" />
@@ -528,13 +515,11 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
               </button>
             </div>
 
-            {/* Live Overall Health Gauge */}
             <div className="p-4 rounded-xl bg-slate-900 text-white space-y-2 border border-slate-700 shadow-xs">
               <div className="flex flex-wrap justify-between items-center text-xs gap-2">
                 <span>Saldo Total Reservas: <strong className="text-emerald-300 font-mono text-sm">{formatarMoeda(saude.saldoTotal)}</strong></span>
                 <span>Proporção x Gasto Mensal: <strong className="text-emerald-300 font-mono text-sm">{saude.ratio.toFixed(1)}x</strong></span>
               </div>
-              {/* Thermometer Progress Bar */}
               <div className="w-full bg-slate-800 rounded-full h-3.5 overflow-hidden flex p-0.5 border border-slate-700">
                 <div
                   className="h-full rounded-full transition-all duration-500"
@@ -544,7 +529,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
               <p className="text-[11px] text-slate-300 italic">{saude.mensagem}</p>
             </div>
 
-            {/* Gasto Médio e Rendimento Base */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-200">
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center justify-between">
@@ -579,53 +563,27 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
               </div>
             </div>
 
-            {/* 4 Cards de Fundos com Metas e Caixinhas de Frase */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              
-              {/* 1. Livre Caixa */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between border-b pb-1.5">
                   <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <DollarSign className="w-4 h-4 text-[#2d5a32]" />
                     <span>Livre Caixa</span>
                   </span>
-                  <span className="text-[10px] font-bold text-[#2d5a32] bg-[#e8f0e6] px-2 py-0.5 rounded-md border border-[#2d5a32]/20">
-                    {metaLivreCaixaCustom > 0
-                      ? `Meta Opcional: ${formatarMoeda(metaLivreCaixaCustom)}`
-                      : `Meta: 2x Gasto (${formatarMoeda(2 * gastoMedio)})`}
-                  </span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual do Caixa (R$)</label>
-                    <input
-                      type="number"
-                      value={livreCaixa}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value) || 0;
-                        setLivreCaixa(v);
-                        marcarAlteracaoCaixa();
-                      }}
-                      className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#2d5a32]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Meta Opcional (R$)</label>
-                    <input
-                      type="number"
-                      value={metaLivreCaixaCustom}
-                      onChange={(e) => {
-                        const m = parseFloat(e.target.value) || 0;
-                        setMetaLivreCaixaCustom(m);
-                      }}
-                      placeholder="Padrão: 2x Gasto"
-                      className="w-full p-2 border rounded-lg font-mono text-xs bg-slate-50"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual do Caixa (R$)</label>
+                  <input
+                    type="number"
+                    value={livreCaixa}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value) || 0;
+                      setLivreCaixa(v);
+                      marcarAlteracaoCaixa();
+                    }}
+                    className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#2d5a32]"
+                  />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                     <MessageSquare className="w-3 h-3 text-slate-400" />
@@ -641,50 +599,26 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                 </div>
               </div>
 
-              {/* 2. Fundo Obras */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between border-b pb-1.5">
                   <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <Target className="w-4 h-4 text-blue-700" />
                     <span>Fundo Obra</span>
                   </span>
-                  <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                    {metaFundoObrasCustom > 0
-                      ? `Meta Opcional: ${formatarMoeda(metaFundoObrasCustom)}`
-                      : `Meta: pelo menos 4x Gasto (${formatarMoeda(4 * gastoMedio)})`}
-                  </span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual do Fundo (R$)</label>
-                    <input
-                      type="number"
-                      value={fundoObras}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value) || 0;
-                        setFundoObras(v);
-                        marcarAlteracaoCaixa();
-                      }}
-                      className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Meta Opcional (R$)</label>
-                    <input
-                      type="number"
-                      value={metaFundoObrasCustom}
-                      onChange={(e) => {
-                        const m = parseFloat(e.target.value) || 0;
-                        setMetaFundoObrasCustom(m);
-                      }}
-                      placeholder="Padrão: 4x Gasto"
-                      className="w-full p-2 border rounded-lg font-mono text-xs bg-slate-50"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual do Fundo (R$)</label>
+                  <input
+                    type="number"
+                    value={fundoObras}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value) || 0;
+                      setFundoObras(v);
+                      marcarAlteracaoCaixa();
+                    }}
+                    className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-600"
+                  />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                     <MessageSquare className="w-3 h-3 text-slate-400" />
@@ -700,48 +634,26 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                 </div>
               </div>
 
-              {/* 3. Fundo Pintura (Meta Em Aberto) */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between border-b pb-1.5">
                   <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <Building className="w-4 h-4 text-purple-700" />
                     <span>Fundo Pintura</span>
                   </span>
-                  <span className="text-[10px] font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-                    {metaFundoPinturaCustom > 0 ? `Meta: ${formatarMoeda(metaFundoPinturaCustom)}` : 'Meta: Em aberto'}
-                  </span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual (R$)</label>
-                    <input
-                      type="number"
-                      value={fundoPintura}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value) || 0;
-                        setFundoPintura(v);
-                        marcarAlteracaoCaixa();
-                      }}
-                      className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-purple-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Meta Opcional (R$)</label>
-                    <input
-                      type="number"
-                      value={metaFundoPinturaCustom}
-                      onChange={(e) => {
-                        const m = parseFloat(e.target.value) || 0;
-                        setMetaFundoPinturaCustom(m);
-                      }}
-                      placeholder="Em aberto"
-                      className="w-full p-2 border rounded-lg font-mono text-xs bg-slate-50"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual (R$)</label>
+                  <input
+                    type="number"
+                    value={fundoPintura}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value) || 0;
+                      setFundoPintura(v);
+                      marcarAlteracaoCaixa();
+                    }}
+                    className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-purple-600"
+                  />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                     <MessageSquare className="w-3 h-3 text-slate-400" />
@@ -757,18 +669,13 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                 </div>
               </div>
 
-              {/* 4. Fundo Reforma */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between border-b pb-1.5">
                   <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-700" />
                     <span>Fundo Reforma</span>
                   </span>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    Meta: 4x Gasto ({formatarMoeda(4 * gastoMedio)})
-                  </span>
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1">Valor Atual do Fundo (R$)</label>
                   <input
@@ -782,7 +689,6 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                     className="w-full p-2 border rounded-lg font-mono text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600"
                   />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                     <MessageSquare className="w-3 h-3 text-slate-400" />
@@ -797,10 +703,8 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                   />
                 </div>
               </div>
-
             </div>
 
-            {/* Bloco de Histórico dos 5 Últimos Registros do Caixa */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -883,7 +787,23 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
             </div>
           </div>
 
-          {/* Footer Save Actions */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-2 mb-4 text-slate-800 font-bold">
+              <Settings className="w-5 h-5 text-purple-600" />
+              <h3>Configurações Avançadas</h3>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              Configure regras de auto-preenchimento para geração de relatórios de rateio e emissão de boletos.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsTemplatesModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl font-bold transition-colors border border-purple-200 w-full sm:w-auto"
+            >
+              <Settings className="w-4 h-4" /> Configurar Templates de Relatório
+            </button>
+          </div>
+
           <div className="pt-4 border-t flex justify-end gap-3">
             <button
               type="button"
@@ -897,7 +817,7 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
               className="px-6 py-2 rounded-xl bg-[#2d5a32] hover:bg-[#1e3d22] text-white font-bold flex items-center gap-2 shadow-md"
             >
               <Save className="w-4 h-4" />
-              <span>Salvar Alterações</span>
+              <span>{condominio ? 'Salvar Alterações' : 'Cadastrar Condomínio'}</span>
             </button>
           </div>
         </form>
@@ -1028,6 +948,17 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
           </div>
         </div>
       )}
+      {/* ========================================================================= */}
+      {/* MODAL DE TEMPLATES (MÓDULO 2.5)                                           */}
+      {/* ========================================================================= */}
+      <TemplatesRelatorioModal 
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        templatesRelatorio={templatesRelatorio}
+        onSave={(newTemplates) => setTemplatesRelatorio(newTemplates)}
+        condominioName={nome || 'Novo Condomínio'}
+        quantidadeUnidades={unidades}
+      />
     </div>
   );
 };

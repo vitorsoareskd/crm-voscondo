@@ -7,6 +7,9 @@ import { GanttSection } from './GanttSection';
 import { TasksSection } from './TasksSection';
 import { FornecedoresSection } from './FornecedoresSection';
 import { RelatoriosSection } from './RelatoriosSection';
+import { CompliancePanel } from './CompliancePanel';
+
+import { ContratosAlertas } from './ContratosAlertas';
 import { Table, Plus, Download, Upload, Search, Edit3, Trash2, Eye, EyeOff, Activity, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 interface ERPModuleProps {
@@ -20,6 +23,8 @@ interface ERPModuleProps {
   setTarefasEquipe: React.Dispatch<React.SetStateAction<TarefaEquipe[]>>;
   fornecedores: Fornecedor[];
   setFornecedores: React.Dispatch<React.SetStateAction<Fornecedor[]>>;
+  agenda: any[];
+  setAgenda: React.Dispatch<React.SetStateAction<any[]>>;
   subTab: string;
 }
 
@@ -34,6 +39,8 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
   setTarefasEquipe,
   fornecedores,
   setFornecedores,
+  agenda,
+  setAgenda,
   subTab
 }) => {
   const [busca, setBusca] = useState('');
@@ -243,6 +250,8 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
             </div>
           </div>
 
+          <ContratosAlertas />
+
           {/* Search and Filters */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="relative flex-1 min-w-[240px]">
@@ -393,6 +402,8 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
               </table>
             </div>
           </div>
+          
+          <CompliancePanel />
         </div>
       )}
 
@@ -419,6 +430,8 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
         <TasksSection
           tarefas={tarefasEquipe}
           setTarefas={setTarefasEquipe}
+          agenda={agenda}
+          setAgenda={setAgenda}
           condominios={condominios}
         />
       )}
@@ -436,6 +449,8 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
       {subTab === 'relatorios' && (
         <RelatoriosSection condominios={condominios} />
       )}
+
+
 
       {/* Editing / Creating Modal */}
       {(editingCondo || isCreating) && (

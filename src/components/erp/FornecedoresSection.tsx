@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Fornecedor, Condominio } from '../../types';
+import { Fornecedor, Condominio, ServicoFeitoFornecedor } from '../../types';
 import { Plus, Star, Users, Search, Filter, Trash2, Building2, Tag, X, Check, Settings, Phone, Mail, FileText, AlertCircle, Sparkles, Pencil } from 'lucide-react';
 
 interface FornecedoresSectionProps {
@@ -106,6 +106,8 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
   const [editAvaliacaoServico, setEditAvaliacaoServico] = useState(5);
   const [editAvaliacaoCustoBeneficio, setEditAvaliacaoCustoBeneficio] = useState(5);
   const [editObservacoes, setEditObservacoes] = useState('');
+  const [editServicosFeitos, setEditServicosFeitos] = useState<ServicoFeitoFornecedor[]>([]);
+  const [showServicosModalFornecedor, setShowServicosModalFornecedor] = useState(false);
   const [editSelectedCondoIds, setEditSelectedCondoIds] = useState<string[]>([]);
   const [editCustomCondoInput, setEditCustomCondoInput] = useState('');
   const [editOutrosCondominios, setEditOutrosCondominios] = useState<string[]>([]);
@@ -120,6 +122,7 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
     setEditAvaliacaoServico(f.avaliacaoServico || 5);
     setEditAvaliacaoCustoBeneficio(f.avaliacaoCustoBeneficio || 5);
     setEditObservacoes(f.observacoes || '');
+    setEditServicosFeitos(f.servicosFeitos || []);
 
     const condList =
       f.condominiosAtendidos && f.condominiosAtendidos.length > 0
@@ -175,7 +178,8 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
       avaliacaoCustoBeneficio: editAvaliacaoCustoBeneficio,
       telefone: editTelefone.trim() || '(41) 90000-0000',
       email: editEmail.trim() || undefined,
-      observacoes: editObservacoes.trim() || undefined
+      observacoes: editObservacoes.trim() || undefined,
+      servicosFeitos: editServicosFeitos
     };
 
     setFornecedores((prev) => prev.map((item) => (item.id === fornecedorParaEditar.id ? updatedForn : item)));
@@ -1061,6 +1065,19 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
                 />
               </div>
 
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">Histórico de Serviços</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowServicosModalFornecedor(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 cursor-pointer border border-emerald-200 shadow-xs"
+                  >
+                    <FileText className="w-4 h-4" /> Gerenciar Serviços Feitos ({editServicosFeitos.length})
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-2 border-t pt-3">
                 <button
                   type="button"
@@ -1078,6 +1095,114 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gerenciar Serviços Feitos */}
+      {showServicosModalFornecedor && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8 space-y-4 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Histórico de Serviços</h3>
+                  <p className="text-xs text-slate-500">Gerencie os serviços prestados por este fornecedor</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowServicosModalFornecedor(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setEditServicosFeitos([...editServicosFeitos, { id: Date.now().toString(36) + Math.random().toString(36).substring(2), data: '', condominio: '', descricao: '' }])}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-[#1c3220] text-emerald-300 rounded-lg text-xs font-bold hover:bg-[#2d5a32] cursor-pointer shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" /> Registrar Novo Serviço
+                  </button>
+                </div>
+                {editServicosFeitos.length === 0 ? (
+                  <p className="text-sm text-slate-400 italic text-center py-6 bg-slate-50 rounded-xl border border-slate-200 border-dashed">Nenhum serviço registrado neste fornecedor.</p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    {editServicosFeitos.map((servico, index) => (
+                      <div key={servico.id} className="grid grid-cols-[1.2fr_1.5fr_2fr_auto] gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-2xs">
+                        <div>
+                           <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Data</label>
+                           <input
+                             type="date"
+                             value={servico.data}
+                             onChange={(e) => {
+                               const newServicos = [...editServicosFeitos];
+                               newServicos[index].data = e.target.value;
+                               setEditServicosFeitos(newServicos);
+                             }}
+                             className="w-full p-2 border rounded-lg text-xs font-semibold focus:ring-2 focus:ring-[#2d5a32]"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Condomínio</label>
+                           <input
+                             type="text"
+                             placeholder="Ex: Condomínio Bosque"
+                             value={servico.condominio}
+                             onChange={(e) => {
+                               const newServicos = [...editServicosFeitos];
+                               newServicos[index].condominio = e.target.value;
+                               setEditServicosFeitos(newServicos);
+                             }}
+                             className="w-full p-2 border rounded-lg text-xs font-semibold focus:ring-2 focus:ring-[#2d5a32]"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Descrição (máx 50 carac.)</label>
+                           <input
+                             type="text"
+                             placeholder="Ex: Troca de disjuntor"
+                             maxLength={50}
+                             value={servico.descricao}
+                             onChange={(e) => {
+                               const newServicos = [...editServicosFeitos];
+                               newServicos[index].descricao = e.target.value;
+                               setEditServicosFeitos(newServicos);
+                             }}
+                             className="w-full p-2 border rounded-lg text-xs font-semibold focus:ring-2 focus:ring-[#2d5a32]"
+                           />
+                        </div>
+                        <div className="pt-4">
+                           <button
+                             type="button"
+                             title="Remover Serviço"
+                             onClick={() => setEditServicosFeitos(editServicosFeitos.filter(s => s.id !== servico.id))}
+                             className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg cursor-pointer transition-colors"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+            <div className="flex justify-end pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => setShowServicosModalFornecedor(false)}
+                className="px-5 py-2 bg-[#e8f0e6] text-[#2d5a32] rounded-xl font-bold text-sm hover:bg-emerald-100 cursor-pointer"
+              >
+                Concluído
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -47,6 +47,8 @@ export const STORAGE_KEYS = {
   PORQUINHOS: 'vos_porquinhos',
   TRANSACOES_EXTRATO: 'vos_transacoes_extrato',
   PROJECAO_ITEMS: 'vos_projecao_items',
+  AGENDA: 'vos_agenda',
+  GOOGLE_CONFIG: 'vos_google_config',
 };
 
 // Function to clear all application data (blank state)
@@ -69,4 +71,5 @@ export function resetAllToInitialData(): void {
   saveToStorage(STORAGE_KEYS.PORQUINHOS, PORQUINHOS_INICIAIS);
   saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, TRANSACOES_EXTRATO_INICIAIS);
   saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, PROJECAO_ITEMS_INICIAIS);
+  saveToStorage(STORAGE_KEYS.AGENDA, []);
 }

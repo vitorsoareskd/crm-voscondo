@@ -16,6 +16,27 @@ export interface RegistroHistoricoCaixa {
   observacao?: string;
 }
 
+export interface TemplateUnidadePadrao {
+  unidadeId: number;
+  nomeUnidade: string;
+  moradores: number;
+  fracaoIdeal?: number;
+}
+
+export interface TemplateRelatorio {
+  despesasPadrao?: string[];
+  fundoReservaAliquota?: string;
+  fundoReservaValor?: string;
+  obrasDescricao?: string; // legível para retrocompatibilidade
+  obrasPadrao?: string[];
+  fundoPinturaValor?: string;
+  fundoObrasValor?: string;
+  taxaBoletoValor?: string;
+  aguaTipoRateio?: string; // 'fracao_ideal' | 'divisao_igual' | 'moradores' | 'consumo_medido'
+  aguaComposicao?: string;
+  unidadesPadrao?: TemplateUnidadePadrao[];
+}
+
 export interface Condominio {
   id: string; // e.g. COND-001
   status: StatusFunil;
@@ -58,9 +79,10 @@ export interface Condominio {
   notaFundoReforma?: number; // 1 a 5 (legado)
   metaLivreCaixaCustom?: number; // Meta Opcional (R$) para Livre Caixa
   metaFundoObrasCustom?: number; // Meta Opcional (R$) para Fundo Obra
-  metaFundoPinturaCustom?: number; // Meta Opcional (R$) em aberto para Fundo Pintura
+  metaFundoPinturaCustom?: number; // Meta Opcional (R$) para Fundo Pintura
   anotacoes?: string; // Anotações gerais e customizáveis do condomínio
   historicoCaixa?: RegistroHistoricoCaixa[]; // Mantendo os 5 últimos registros para conferência
+  templatesRelatorio?: TemplateRelatorio;
 }
 
 export interface ServicoExtra {
@@ -117,8 +139,41 @@ export interface TarefaEquipe {
   concluida: boolean;
   dataLimite: string;
   atribuidoPara: string;
+  googleTaskId?: string;
 }
 
+export type TipoRecorrencia = 'Nenhuma' | 'Diária' | 'Semanal' | 'Mensal' | 'Anual';
+
+export interface AgendaEvent {
+  id: string;
+  condominioId?: string;
+  condominioNome?: string;
+  titulo: string;
+  descricao?: string;
+  dataHora: string; // ISO datetime
+  recorrencia: TipoRecorrencia;
+  dataFinalRecorrencia?: string; // ISO date for when recurrence ends
+  notificacaoEnviada5Dias: boolean;
+  notificacaoEnviada1Dia: boolean;
+  notificacaoEnviada2Horas: boolean;
+  googleEventId?: string;
+}
+
+export interface GoogleConfig {
+  clientId: string;
+  accessToken?: string;
+  tokenExpiresAt?: number; // timestamp ms
+  userEmail?: string;
+  userName?: string;
+  userPicture?: string;
+}
+
+export interface ServicoFeitoFornecedor {
+  id: string;
+  data: string;
+  condominio: string;
+  descricao: string;
+}
 export interface Fornecedor {
   id: string;
   nome: string;
@@ -131,6 +186,7 @@ export interface Fornecedor {
   telefone: string;
   email?: string;
   observacoes?: string;
+  servicosFeitos?: ServicoFeitoFornecedor[];
 }
 
 export interface Porquinho {

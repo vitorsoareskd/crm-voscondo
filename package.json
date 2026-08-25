@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node node_modules/vite/bin/vite.js --port=3000 --host=0.0.0.0",
+    "server": "tsx server.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "build": "node node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -12,11 +14,14 @@
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@react-oauth/google": "^0.13.5",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "date-fns": "^4.4.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase": "^12.16.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.546.0",
@@ -27,13 +32,17 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^10.0.5",
     "esbuild": "^0.25.0",
+    "puppeteer": "^25.8.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3",
-    "@types/express": "^4.17.21"
+    "vite": "^6.2.3"
   }
 }

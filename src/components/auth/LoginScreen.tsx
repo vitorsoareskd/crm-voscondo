@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, Eye, EyeOff, ShieldCheck, KeyRound, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { auth } from '../../lib/firebase';
-import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -22,12 +21,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const cleanEmail = email.trim().toLowerCase();
     
     if (cleanEmail === 'adm@voscondo.com' && password === '@Vitor0717') {
-      try {
-        // Authenticate anonymously or via firebase if auth enabled
-        await signInAnonymously(auth).catch(() => {});
-      } catch (err) {
-        console.warn('Firebase Auth notice:', err);
-      }
+      // Mock login sucessful
       sessionStorage.setItem('vos_user_email', 'adm@voscondo.com');
       setIsLoading(false);
       onLoginSuccess();
