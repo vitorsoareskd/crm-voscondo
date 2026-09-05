@@ -15,7 +15,7 @@ export const ContratosAlertas: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/contratos')
+    fetch('/api/contratos')
       .then(res => res.json())
       .then(data => {
         setContratos(data);

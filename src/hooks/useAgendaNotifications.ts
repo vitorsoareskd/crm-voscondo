@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { AgendaEvent } from '../types';
 import { differenceInHours, differenceInDays, parseISO } from 'date-fns';
 

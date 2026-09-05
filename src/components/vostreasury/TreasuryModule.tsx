@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Fornecedor, Porquinho, TransacaoPorquinho, Condominio, TransacaoExtrato, ProjecaoItem, Inadimplente } from '../../types';
+import { apiSavePorquinho, apiUpdatePorquinho, apiDeletePorquinho, apiSaveFornecedor } from '../../services/api';
 import { formatarMoeda } from '../../utils/pricingEngine';
 import { ExtratoFinanceiroSection } from './ExtratoFinanceiroSection';
 import { RentabilidadeSection } from './RentabilidadeSection';
 import { SaudeAdministradoraSection } from './SaudeAdministradoraSection';
 import { UcondoApiSection } from './UcondoApiSection';
-import { NFeSection } from './NFeSection';
+import { NFeSection, NFeItem } from './NFeSection';
 import {
   ShieldCheck,
   Plus,
@@ -85,23 +86,60 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
   const [fornCustoStar, setFornCustoStar] = useState(4);
   const [fornTel, setFornTel] = useState('');
 
-  // Selected Year Reference for Porquinhos / Centros de Custo
+  // Selected Year & Month Reference for Porquinhos / Centros de Custo
   const [anoReferenciaPorquinho, setAnoReferenciaPorquinho] = useState<string>('2026');
+  const [mesReferenciaPorquinho, setMesReferenciaPorquinho] = useState<string>('Todos');
+
+  // NFes State (synced across Extrato and NFeSection)
+  const [nfes, setNfes] = useState<NFeItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('vos_treasury_nfes');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleAdicionarNfeAutomatica = (novaNfe: NFeItem) => {
+    setNfes((prev) => [novaNfe, ...prev]);
+  };
+
+  const MESES_NOMES_TREASURY = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  const matchPeriodoExtrato = (t: any) => {
+    if (anoReferenciaPorquinho !== 'Todos') {
+      const tAno = t.data ? t.data.substring(0, 4) : (t.mesReferencia?.split('/')[1] || '2026');
+      if (tAno !== anoReferenciaPorquinho) return false;
+    }
+    if (mesReferenciaPorquinho !== 'Todos') {
+      const mesNum = MESES_NOMES_TREASURY.indexOf(mesReferenciaPorquinho) + 1;
+      const mesPrefix = mesNum < 10 ? `0${mesNum}` : `${mesNum}`;
+      const dataMes = t.data ? t.data.substring(5, 7) : '';
+      const refMes = t.mesReferencia || '';
+      const match1 = dataMes === mesPrefix;
+      const match2 = refMes.toLowerCase().includes(mesReferenciaPorquinho.toLowerCase());
+      if (!match1 && !match2) return false;
+    }
+    return true;
+  };
 
   // Calculations for Extrato & Porquinhos
   const receitaTotalExtrato = transacoesExtrato
-    .filter((t) => t.tipo === 'entrada')
+    .filter((t) => t.tipo === 'entrada' && matchPeriodoExtrato(t))
     .reduce((acc, t) => acc + (t.valor || 0), 0);
 
   const despesaTotalExtrato = transacoesExtrato
-    .filter((t) => t.tipo === 'saida')
+    .filter((t) => t.tipo === 'saida' && matchPeriodoExtrato(t))
     .reduce((acc, t) => acc + (t.valor || 0), 0);
 
   const caixaAcumuladoLucroLiquido = receitaTotalExtrato - despesaTotalExtrato;
   const saldoTotalPorquinhos = porquinhos.reduce((acc, p) => acc + (p.saldoAtual || 0), 0);
   const lucroLiquidoLivre = Math.max(0, caixaAcumuladoLucroLiquido - saldoTotalPorquinhos);
 
-  // Total Geral VOS (Saques) / Dividendos for selected reference year
+  // Total Geral VOS (Saques) / Dividendos for selected reference year & month
   const totalDividendosGeralVOS = transacoesExtrato
     .filter((t) => {
       const isDiv =
@@ -115,10 +153,7 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
         t.categoria?.toLowerCase().includes('dividendo');
 
       if (!isDiv) return false;
-      if (anoReferenciaPorquinho === 'Todos') return true;
-
-      const tAno = t.data ? t.data.substring(0, 4) : (t.mesReferencia?.split('/')[1] || '2026');
-      return tAno === anoReferenciaPorquinho;
+      return matchPeriodoExtrato(t);
     })
     .reduce((acc, t) => acc + (t.valor || 0), 0);
 
@@ -142,6 +177,7 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
     };
 
     setPorquinhos([...porquinhos, newP]);
+    apiSavePorquinho(newP).catch((err) => console.error('Erro ao salvar porquinho no SQLite:', err));
     setNovoPorquinhoNome('');
     setNovoPorquinhoDesc('');
     setNovoPorquinhoSaldo('0');
@@ -167,15 +203,20 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
       }
     }
 
-    setPorquinhos((prev) =>
-      prev.map((p) => {
+    setPorquinhos((prev) => {
+      const updated = prev.map((p) => {
         if (p.id === selectedPorquinho.id) {
           const novoSaldo = transacaoTipo === 'aporte' ? p.saldoAtual + val : p.saldoAtual - val;
           return { ...p, saldoAtual: Math.max(0, novoSaldo) };
         }
         return p;
-      })
-    );
+      });
+      const target = updated.find((p) => p.id === selectedPorquinho.id);
+      if (target) {
+        apiUpdatePorquinho(selectedPorquinho.id, target).catch((err) => console.error('Erro ao atualizar porquinho no SQLite:', err));
+      }
+      return updated;
+    });
 
     setSelectedPorquinho(null);
     setTransacaoValor('');
@@ -185,6 +226,7 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
   const handleConfirmarExclusaoPorquinho = () => {
     if (!porquinhoParaExcluir) return;
     const targetId = porquinhoParaExcluir.id;
+    apiDeletePorquinho(targetId).catch((err) => console.error('Erro ao excluir porquinho no SQLite:', err));
     setPorquinhos((prev) => prev.filter((p) => p.id !== targetId));
     setPorquinhoParaExcluir(null);
   };
@@ -206,6 +248,7 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
     };
 
     setFornecedores([newForn, ...fornecedores]);
+    apiSaveFornecedor(newForn).catch((err) => console.error('Erro ao salvar fornecedor no SQLite:', err));
     setFornNome('');
     setFornCnpj('');
     setFornTel('');
@@ -277,18 +320,36 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Menu Ano de Referência */}
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 shadow-2xs">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Ano:</span>
                 <select
                   value={anoReferenciaPorquinho}
                   onChange={(e) => setAnoReferenciaPorquinho(e.target.value)}
-                  className="bg-transparent font-bold text-slate-800 focus:outline-hidden cursor-pointer"
+                  className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
                 >
                   <option value="2025">2025</option>
                   <option value="2026">2026</option>
                   <option value="2027">2027</option>
-                  <option value="Todos">Todos</option>
+                  <option value="Todos">Todos os Anos</option>
+                </select>
+              </div>
+
+              {/* Menu Filtrar o Mês */}
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Mês:</span>
+                <select
+                  value={mesReferenciaPorquinho}
+                  onChange={(e) => setMesReferenciaPorquinho(e.target.value)}
+                  className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="Todos">Todos os Meses</option>
+                  {MESES_NOMES_TREASURY.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -657,12 +718,18 @@ export const TreasuryModule: React.FC<TreasuryModuleProps> = ({
           transacoes={transacoesExtrato}
           setTransacoes={setTransacoesExtrato}
           condominios={condominios}
+          onAdicionarNfe={handleAdicionarNfeAutomatica}
         />
       )}
 
       {/* SubTab 5: NFe */}
       {subTab === 'nfe' && (
-        <NFeSection condominios={condominios} transacoes={transacoesExtrato} />
+        <NFeSection
+          condominios={condominios}
+          transacoes={transacoesExtrato}
+          nfes={nfes}
+          setNfes={setNfes}
+        />
       )}
 
       {/* Add Porquinho Modal */}

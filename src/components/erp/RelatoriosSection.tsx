@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Condominio } from '../../types';
 import { formatarMoeda } from '../../utils/pricingEngine';
+import { apiGetRelatoriosOrcamento, apiSaveRelatorioOrcamento, apiDeleteRelatorioOrcamento } from '../../services/api';
 import {
   FileText,
   Calculator,
@@ -25,8 +26,63 @@ import {
   X,
   Sliders,
   Edit3,
-  Droplets
+  Droplets,
+  Save,
+  Search,
+  Folder,
+  FolderOpen,
+  Eye,
+  Calendar,
+  Tag,
+  ArrowRight,
+  CheckCheck,
+  Clock,
+  ExternalLink,
+  Bookmark,
+  Layers
 } from 'lucide-react';
+
+export interface OrcamentoRelatorioSalvo {
+  id: string;
+  titulo: string;
+  dataSalvamento: string;
+  timestamp: number;
+  condominioId: string;
+  nomeCondominio: string;
+  mesReferencia: string;
+  numeroUnidades: number;
+  vencimentoBoleto: string;
+  totalGeral: number;
+  totalOrdinarias: number;
+  totalFundoReserva: number;
+  totalExtraordinarias: number;
+  totalFundoPintura: number;
+  totalFundoObras: number;
+  totalAgua: number;
+  observacoes?: string;
+  // Snapshot completo das tabelas e regras
+  despesasOrdinarias: DespesaOrdinaria[];
+  despesasExtraordinarias: DespesaExtraordinaria[];
+  unidadesConfig: UnidadeConfig[];
+  taxaMinimaAgua: number;
+  excedenteAguaTotal: number;
+  escopoRateioAgua: 'total_com_taxa_minima' | 'apenas_excedente';
+  excedentesExtras?: { id: string; nome: string; valor: number }[];
+  tipoCotaBasica: 'fracao_ideal' | 'divisao_igual' | 'moradores';
+  tipoRateioFundoReserva: 'fracao_ideal' | 'divisao_igual' | 'moradores';
+  tipoDespesaExtra: 'fracao_ideal' | 'divisao_igual' | 'moradores';
+  tipoFundoPintura: string;
+  tipoFundoObras: string;
+  tipoRateioAgua: 'fracao_ideal' | 'divisao_igual' | 'moradores';
+  tipoRateioTaxaMinAgua: 'fracao_ideal' | 'divisao_igual' | 'moradores';
+  tipoRateioExcedente: 'fracao_ideal' | 'divisao_igual' | 'moradores';
+  fundoReservaValor: number;
+  fundoPinturaPorUnidade: number;
+  fundoObrasPorUnidade: number;
+  taxaBoletoValor: number;
+  descricaoFundoObras?: string;
+  composicaoAgua?: string;
+}
 
 interface RelatoriosSectionProps {
   condominios: Condominio[];
@@ -142,6 +198,10 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
     return demonstrativoUnidades.reduce((acc, u) => acc + (u.moradores !== undefined ? Number(u.moradores) : 2), 0);
   }, [demonstrativoUnidades]);
 
+  const somaTotalFracoes = useMemo(() => {
+    return demonstrativoUnidades.reduce((acc, u) => acc + (Number(u.fracaoIdeal) || 0), 0);
+  }, [demonstrativoUnidades]);
+
   const somaTotalValores = useMemo(() => {
     return demonstrativoUnidades.reduce((acc, u) => acc + (getValue(u) || 0), 0);
   }, [demonstrativoUnidades, getValue]);
@@ -216,7 +276,7 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
 
       {/* Opção de composição no Valor Total Apurado do Rateio de Água */}
       {onEscopoRateioAguaChange && (
-        <div className="bg-sky-50/90 border border-sky-200/90 p-3 rounded-xl space-y-2">
+        <div className="bg-sky-50/90 border border-sky-200/90 p-3 rounded-xl space-y-2 print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] font-bold text-sky-950 uppercase tracking-wide flex items-center gap-1.5">
               <Droplets className="w-4 h-4 text-sky-700 shrink-0" />
@@ -244,7 +304,7 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
                   1. Apenas Excedente de Consumo
                 </p>
                 <p className={`text-[10px] mt-0.5 ${escopoRateioAgua === 'apenas_excedente' ? 'text-sky-100' : 'text-slate-500'}`}>
-                  Valor Total Apurado do Rateio = Excedente de Consumo (Medição Individualizada/Hidrômetros)
+                  Valor Total Apurado do Rateio = Excedente de Consumo
                 </p>
                 <p className={`text-[11px] mt-1 font-mono font-bold ${escopoRateioAgua === 'apenas_excedente' ? 'text-white' : 'text-sky-900'}`}>
                   Total Apurado = {formatarMoeda(excedenteAguaTotal || 0)}
@@ -268,7 +328,7 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
                   2. Taxa Mínima + Excedente de Consumo
                 </p>
                 <p className={`text-[10px] mt-0.5 ${escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua ? 'text-sky-100' : 'text-slate-500'}`}>
-                  Valor Total Apurado do Rateio = Taxa Mínima de Água & Esgoto (Sanepar/Concessionária) + Excedente de Consumo
+                  Valor Total Apurado do Rateio = Taxa Mínima Sanepar + Excedente de Consumo
                 </p>
                 <p className={`text-[11px] mt-1 font-mono font-bold ${escopoRateioAgua === 'total_com_taxa_minima' || !escopoRateioAgua ? 'text-white' : 'text-sky-900'}`}>
                   {formatarMoeda(taxaMinimaAgua || 0)} + {formatarMoeda(excedenteAguaTotal || 0)} = {formatarMoeda((taxaMinimaAgua || 0) + (excedenteAguaTotal || 0))}
@@ -283,44 +343,44 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-100/90 text-slate-600 font-bold uppercase text-[10px] border-b border-slate-200">
-              <th className="py-2 px-2.5 w-36 text-center">
+              <th className="py-2 px-2.5 w-36 text-center text-black font-bold">
                 {tipoRateio === 'moradores' ? 'Nº Moradores' : tipoRateio === 'divisao_igual' ? 'Critério' : 'Fração (%)'}
               </th>
-              <th className="py-2 px-2.5">Unidades de Residências</th>
-              <th className="py-2 px-2.5 w-48 text-right">Valor Total Pago pelo Grupo</th>
-              <th className="py-2 px-2.5 w-44 text-right">Valor Unitário do Grupo</th>
+              <th className="py-2 px-2.5 text-black font-bold">Unidades de Residências</th>
+              <th className="py-2 px-2.5 w-48 text-right text-black font-bold">Valor Total Pago pelo Grupo</th>
+              <th className="py-2 px-2.5 w-44 text-right text-black font-bold">Valor Unitário do Grupo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200/80">
             {grupos.map((g, idx) => (
               <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                <td className="py-2 px-2.5 text-center font-mono font-bold text-slate-800 bg-slate-50/60">
+                <td className="py-2 px-2.5 text-center font-mono font-bold text-black bg-slate-50/60">
                   {g.keyLabel}
                 </td>
                 <td className="py-2 px-2.5">
-                  <span className="font-semibold text-slate-800">
+                  <span className="font-semibold text-black">
                     {g.unidades.length} {g.unidades.length === 1 ? 'unidade' : 'unidades'}
                   </span>
                 </td>
-                <td className="py-2 px-2.5 text-right font-mono font-bold text-slate-800">
+                <td className="py-2 px-2.5 text-right font-mono font-bold text-black">
                   {formatarMoeda(g.totalGrupo)}
                 </td>
-                <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-800">
+                <td className="py-2 px-2.5 text-right font-mono font-bold text-black">
                   {formatarMoeda(g.valorUnitario)}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-slate-100/90 font-bold text-slate-800 border-t border-slate-200 text-xs">
-              <td colSpan={2} className="py-2 px-2.5 text-right uppercase">
+            <tr className="bg-slate-100/90 font-bold text-black border-t border-slate-200 text-xs">
+              <td colSpan={2} className="py-2 px-2.5 text-right uppercase text-black font-bold">
                 {tipoRateio === 'fracao_ideal'
                   ? 'Subtotal do Rateio por Fração Ideal:'
                   : tipoRateio === 'moradores'
                     ? 'Subtotal do Rateio por Nº de Moradores:'
                     : 'Subtotal da Divisão Igualitária:'}
               </td>
-              <td className="py-2 px-2.5 text-right font-mono font-black text-[#2d5a32]">
+              <td className="py-2 px-2.5 text-right font-mono font-black text-black">
                 {formatarMoeda(totalGeralGrupos)}
               </td>
               <td className="py-2 px-2.5"></td>
@@ -523,7 +583,13 @@ const TabelaFracoesBreakdown: React.FC<TabelaFracoesBreakdownProps> = ({
                       <td className="py-2.5 px-3 text-center font-mono font-black text-amber-900 bg-amber-100/80">
                         {somaTotalMoradores} hab.
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono">100.00%</td>
+                      <td className={`py-2.5 px-3 text-right font-mono font-black ${
+                        Math.abs(somaTotalFracoes - 100) < 0.01 
+                          ? 'text-emerald-700 bg-emerald-50/80' 
+                          : 'text-amber-700 bg-amber-50/80'
+                      }`}>
+                        {somaTotalFracoes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%
+                      </td>
                       <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-900 bg-emerald-100/80">
                         {formatarMoeda(somaTotalValores)}
                       </td>
@@ -682,15 +748,20 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
       if (c) {
         const total = c.unidades || 24;
         setNumeroUnidades(total);
-        const baseFracao = Number((100 / total).toFixed(4));
-        setUnidadesConfig(
-          Array.from({ length: total }, (_, i) => ({
-            unidadeId: i + 1,
-            nomeUnidade: `Apt ${101 + Math.floor(i / 4) * 10 + (i % 4)}`,
-            fracaoIdeal: baseFracao,
-            moradores: 2
-          }))
-        );
+        // Se o condomínio NÃO tiver templates de unidades configurados,
+        // inicializa com valores genéricos. Caso contrário, o useEffect de
+        // templates (que monitora templatesRelatorioKey) irá populá-las corretamente.
+        if (!c.templatesRelatorio?.unidadesPadrao || c.templatesRelatorio.unidadesPadrao.length === 0) {
+          const baseFracao = Number((100 / total).toFixed(4));
+          setUnidadesConfig(
+            Array.from({ length: total }, (_, i) => ({
+              unidadeId: i + 1,
+              nomeUnidade: `Apt ${101 + Math.floor(i / 4) * 10 + (i % 4)}`,
+              fracaoIdeal: baseFracao,
+              moradores: 2
+            }))
+          );
+        }
       }
     }
   };
@@ -726,6 +797,20 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     );
   };
 
+  const handleFracaoUnidadeChange = (unidadeId: number, valor: string) => {
+    const num = parseFloat(valor.replace(',', '.')) || 0;
+    setUnidadesConfig((prev) =>
+      prev.map((u) => (u.unidadeId === unidadeId ? { ...u, fracaoIdeal: num } : u))
+    );
+  };
+
+  const handleMoradoresUnidadeChange = (unidadeId: number, valor: string) => {
+    const num = Math.max(0, parseInt(valor) || 0);
+    setUnidadesConfig((prev) =>
+      prev.map((u) => (u.unidadeId === unidadeId ? { ...u, moradores: num } : u))
+    );
+  };
+
   // 2. Relatório Despesas State
   const [despesasOrdinarias, setDespesasOrdinarias] = useState<DespesaOrdinaria[]>([
     { id: '1', descricao: 'Folha de Pagamento & Encargos', vencimentoReferencia: '05/08', valor: 4500.0 },
@@ -752,6 +837,8 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const [tipoFundoPintura, setTipoFundoPintura] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
   const [tipoFundoObras, setTipoFundoObras] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
   const [tipoRateioAgua, setTipoRateioAgua] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
+  const [tipoRateioTaxaMinAgua, setTipoRateioTaxaMinAgua] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
+  const [tipoRateioExcedente, setTipoRateioExcedente] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
 
 
   const [fundoReservaValor, setFundoReservaValor] = useState<number>(10); // 10% or R$ 50
@@ -764,7 +851,33 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const [descricaoFundoObras, setDescricaoFundoObras] = useState<string>('Fundo Permanente de Obras e Manutenção Estrutural Geral');
   const [composicaoAgua, setComposicaoAgua] = useState<string>('Sanepar/Concessionária');
 
-  // Aplicar templates quando o condomínio for selecionado
+  // Linhas extras de excedente de água (com nome editável)
+  const [excedentesExtras, setExcedentesExtras] = useState<{ id: string; nome: string; valor: number }[]>([]);
+
+  const addExcedenteExtra = () => {
+    setExcedentesExtras(prev => [...prev, { id: Date.now().toString(), nome: 'Excedente Extra', valor: 0 }]);
+  };
+  const removeExcedenteExtra = (id: string) => {
+    setExcedentesExtras(prev => prev.filter(e => e.id !== id));
+  };
+  const updateExcedenteExtra = (id: string, field: 'nome' | 'valor', value: string | number) => {
+    setExcedentesExtras(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
+  };
+
+  // Aplicar templates quando o condomínio for selecionado ou quando o template do condomínio for atualizado
+  // Extrai o templatesRelatorio do condomínio selecionado para usar como dependência direta.
+  // Assim, qualquer mudança no template (mesmo sem trocar de condomínio) dispara a re-aplicação.
+  const templatesRelatorioAtual = useMemo(() => {
+    if (!condominioId || condominioId === 'custom') return null;
+    const c = condominios.find(c => c.id === condominioId);
+    return c?.templatesRelatorio ?? null;
+  }, [condominioId, condominios]);
+
+  // Serializa o template em string para que o useEffect detecte mudanças profundas no objeto
+  const templatesRelatorioKey = useMemo(() => {
+    return JSON.stringify(templatesRelatorioAtual);
+  }, [templatesRelatorioAtual]);
+
   useEffect(() => {
     try {
       if (condominioId && condominioId !== 'custom') {
@@ -855,7 +968,8 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     } catch (error) {
       console.error('Erro ao aplicar templates:', error);
     }
-  }, [condominioId, condominios]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condominioId, templatesRelatorioKey]);
 
   // Seleção de seções ativas para o PDF / Impressão
   const [secoesRelatorioPDF, setSecoesRelatorioPDF] = useState({
@@ -925,9 +1039,13 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     return despesasExtraordinarias.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
   }, [despesasExtraordinarias]);
 
+  const totalExcedentesExtras = useMemo(() => {
+    return excedentesExtras.reduce((acc, e) => acc + (Number(e.valor) || 0), 0);
+  }, [excedentesExtras]);
+
   const totalAgua = useMemo(() => {
-    return (Number(taxaMinimaAgua) || 0) + (Number(excedenteAguaTotal) || 0);
-  }, [taxaMinimaAgua, excedenteAguaTotal]);
+    return (Number(taxaMinimaAgua) || 0) + (Number(excedenteAguaTotal) || 0) + totalExcedentesExtras;
+  }, [taxaMinimaAgua, excedenteAguaTotal, totalExcedentesExtras]);
 
   const totalFundoReservaCalculado = useMemo(() => {
     return totalOrdinarias * ((fundoReservaValor || 0) / 100);
@@ -1055,51 +1173,44 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
       }
 
       // 6. Custos de Água e Saneamento
+      // Taxa Mínima Sanepar usa tipoRateioTaxaMinAgua
+      // Excedentes usam tipoRateioExcedente
       let taxaMinAguaUnidade = 0;
       let excedenteAguaUnidade = 0;
 
-      if (escopoRateioAgua === 'apenas_excedente') {
-        // Opção 1: Valor Total Apurado do Rateio = Excedente de Consumo (Medição Individualizada/Hidrômetros)
-        // A Taxa Mínima de Água é repartida igualmente entre todas as unidades
-        taxaMinAguaUnidade = (taxaMinimaAgua || 0) / (numeroUnidades || 1);
-
-        if (tipoRateioAgua === 'fracao_ideal' && somaFracoesTotais > 0) {
-          excedenteAguaUnidade =
-            u.excedenteAguaIndividual !== undefined
-              ? u.excedenteAguaIndividual
-              : (excedenteAguaTotal || 0) * (u.fracaoIdeal / somaFracoesTotais);
-        } else if (tipoRateioAgua === 'moradores') {
-          excedenteAguaUnidade =
-            u.excedenteAguaIndividual !== undefined
-              ? u.excedenteAguaIndividual
-              : ((excedenteAguaTotal || 0) / totalMoradores) * moradoresUnidade;
-        } else {
-          excedenteAguaUnidade =
-            u.excedenteAguaIndividual !== undefined
-              ? u.excedenteAguaIndividual
-              : (excedenteAguaTotal || 0) / (numeroUnidades || 1);
-        }
+      // Taxa Mínima (sempre rateada pelo tipoRateioTaxaMinAgua)
+      if (tipoRateioTaxaMinAgua === 'fracao_ideal' && somaFracoesTotais > 0) {
+        taxaMinAguaUnidade = (taxaMinimaAgua || 0) * (u.fracaoIdeal / somaFracoesTotais);
+      } else if (tipoRateioTaxaMinAgua === 'moradores') {
+        taxaMinAguaUnidade = ((taxaMinimaAgua || 0) / totalMoradores) * moradoresUnidade;
       } else {
-        // Opção 2: Valor Total Apurado do Rateio = Taxa Mínima de Água & Esgoto (Sanepar/Concessionária) + Excedente de Consumo
-        if (tipoRateioAgua === 'fracao_ideal' && somaFracoesTotais > 0) {
-          taxaMinAguaUnidade = (taxaMinimaAgua || 0) * (u.fracaoIdeal / somaFracoesTotais);
-          excedenteAguaUnidade =
-            u.excedenteAguaIndividual !== undefined
-              ? u.excedenteAguaIndividual
-              : (excedenteAguaTotal || 0) * (u.fracaoIdeal / somaFracoesTotais);
-        } else if (tipoRateioAgua === 'moradores') {
-          taxaMinAguaUnidade = ((taxaMinimaAgua || 0) / totalMoradores) * moradoresUnidade;
-          excedenteAguaUnidade =
-            u.excedenteAguaIndividual !== undefined
-              ? u.excedenteAguaIndividual
-              : ((excedenteAguaTotal || 0) / totalMoradores) * moradoresUnidade;
-        } else {
-          taxaMinAguaUnidade = (taxaMinimaAgua || 0) / (numeroUnidades || 1);
-          excedenteAguaUnidade =
-            u.excedenteAguaIndividual !== undefined
-              ? u.excedenteAguaIndividual
-              : (excedenteAguaTotal || 0) / (numeroUnidades || 1);
-        }
+        taxaMinAguaUnidade = (taxaMinimaAgua || 0) / (numeroUnidades || 1);
+      }
+
+      // Se escopo for apenas_excedente, zeramos a taxa mínima no rateio
+      if (escopoRateioAgua === 'apenas_excedente') {
+        taxaMinAguaUnidade = (taxaMinimaAgua || 0) / (numeroUnidades || 1); // divisão igual fixa
+      }
+
+      // Excedente de Consumo usa tipoRateioExcedente
+      // totalExcedenteBase = excedente principal + todos os extras (6.2 completo)
+      const totalExcedenteBase = (excedenteAguaTotal || 0) + totalExcedentesExtras;
+
+      if (tipoRateioExcedente === 'fracao_ideal' && somaFracoesTotais > 0) {
+        excedenteAguaUnidade =
+          u.excedenteAguaIndividual !== undefined
+            ? u.excedenteAguaIndividual
+            : totalExcedenteBase * (u.fracaoIdeal / somaFracoesTotais);
+      } else if (tipoRateioExcedente === 'moradores') {
+        excedenteAguaUnidade =
+          u.excedenteAguaIndividual !== undefined
+            ? u.excedenteAguaIndividual
+            : (totalExcedenteBase / totalMoradores) * moradoresUnidade;
+      } else {
+        excedenteAguaUnidade =
+          u.excedenteAguaIndividual !== undefined
+            ? u.excedenteAguaIndividual
+            : totalExcedenteBase / (numeroUnidades || 1);
       }
 
       // 7. Taxa de Boleto
@@ -1176,6 +1287,206 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const temInconsistenciaFracao = Math.abs(somaFracoesTotais - 100) > 0.05;
   const temDiferencaValor = diferencaAuditoria > 0.1;
 
+  // ==========================================
+  // ESTADOS E FUNÇÕES PARA ORÇAMENTOS SALVOS
+  // ==========================================
+  const [visualizacaoAba, setVisualizacaoAba] = useState<'editor' | 'pesquisa'>('editor');
+
+  const [relatoriosSalvos, setRelatoriosSalvos] = useState<OrcamentoRelatorioSalvo[]>(() => {
+    try {
+      const saved = localStorage.getItem('vos_orcamentos_relatorios_salvos');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // ── Sincronização e Migração com SQLite em Tempo Real ───────────────────────
+  useEffect(() => {
+    // 1. Carregar do SQLite
+    apiGetRelatoriosOrcamento()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRelatoriosSalvos(data);
+        } else {
+          // Se o SQLite estiver vazio mas o localStorage local tiver relatórios, salva no SQLite!
+          try {
+            const local = localStorage.getItem('vos_orcamentos_relatorios_salvos');
+            const parsed = local ? JSON.parse(local) : [];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              parsed.forEach((item) => apiSaveRelatorioOrcamento(item).catch(console.error));
+              setRelatoriosSalvos(parsed);
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      })
+      .catch((err) => console.error('Erro ao buscar relatórios do SQLite:', err));
+
+    // 2. Polling contínuo de sincronização a cada 4 segundos
+    const intervalId = setInterval(() => {
+      apiGetRelatoriosOrcamento()
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setRelatoriosSalvos((prev) => {
+              if (prev.length !== data.length || JSON.stringify(prev) !== JSON.stringify(data)) {
+                return data;
+              }
+              return prev;
+            });
+          }
+        })
+        .catch(console.error);
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vos_orcamentos_relatorios_salvos', JSON.stringify(relatoriosSalvos));
+    } catch (e) {
+      console.warn("Erro ao persistir orçamentos salvos:", e);
+    }
+  }, [relatoriosSalvos]);
+
+  const [termoPesquisa, setTermoPesquisa] = useState('');
+  const [filtroCondominio, setFiltroCondominio] = useState('todos');
+  const [filtroMes, setFiltroMes] = useState('todos');
+
+  const [modalSalvarAberto, setModalSalvarAberto] = useState(false);
+  const [tituloSalvar, setTituloSalvar] = useState('');
+  const [obsSalvar, setObsSalvar] = useState('');
+  const [orcamentoDetalhes, setOrcamentoDetalhes] = useState<OrcamentoRelatorioSalvo | null>(null);
+
+  const handleAbrirModalSalvar = () => {
+    const padrao = `${nomeCondominioExibicao} - ${mesReferencia} (${formatarMoeda(totaisDemonstrativo.totalGeral)})`;
+    setTituloSalvar(padrao);
+    setObsSalvar('');
+    setModalSalvarAberto(true);
+  };
+
+  const handleConfirmarSalvarOrcamento = (e: React.FormEvent) => {
+    e.preventDefault();
+    const agora = new Date();
+    const dataFormatada = `${agora.toLocaleDateString('pt-BR')} às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+    const novoOrcamento: OrcamentoRelatorioSalvo = {
+      id: `ORC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      titulo: tituloSalvar.trim() || `${nomeCondominioExibicao} - ${mesReferencia}`,
+      dataSalvamento: dataFormatada,
+      timestamp: Date.now(),
+      condominioId,
+      nomeCondominio: nomeCondominioExibicao,
+      mesReferencia,
+      numeroUnidades,
+      vencimentoBoleto,
+      totalGeral: totaisDemonstrativo.totalGeral,
+      totalOrdinarias,
+      totalFundoReserva: totaisDemonstrativo.fundoReserva,
+      totalExtraordinarias,
+      totalFundoPintura: totalFundoPinturaCalculado,
+      totalFundoObras: totalFundoObrasCalculado,
+      totalAgua,
+      observacoes: obsSalvar.trim(),
+      despesasOrdinarias: JSON.parse(JSON.stringify(despesasOrdinarias)),
+      despesasExtraordinarias: JSON.parse(JSON.stringify(despesasExtraordinarias)),
+      unidadesConfig: JSON.parse(JSON.stringify(unidadesConfig)),
+      taxaMinimaAgua,
+      excedenteAguaTotal,
+      escopoRateioAgua,
+      excedentesExtras: JSON.parse(JSON.stringify(excedentesExtras)),
+      tipoCotaBasica,
+      tipoRateioFundoReserva,
+      tipoDespesaExtra,
+      tipoFundoPintura,
+      tipoFundoObras,
+      tipoRateioAgua,
+      tipoRateioTaxaMinAgua,
+      tipoRateioExcedente,
+      fundoReservaValor,
+      fundoPinturaPorUnidade,
+      fundoObrasPorUnidade,
+      taxaBoletoValor,
+      descricaoFundoObras,
+      composicaoAgua
+    };
+
+    setRelatoriosSalvos((prev) => [novoOrcamento, ...prev]);
+    apiSaveRelatorioOrcamento(novoOrcamento).catch((err) => console.error('Erro ao salvar relatório no SQLite:', err));
+
+    setModalSalvarAberto(false);
+    setMensagemGeracao(`✓ Orçamento "${novoOrcamento.titulo}" salvo com sucesso! Você pode consultá-lo na aba "Orçamentos & Relatórios Salvos".`);
+    setTimeout(() => setMensagemGeracao(''), 6000);
+  };
+
+  const handleCarregarOrcamento = (salvo: OrcamentoRelatorioSalvo) => {
+    if (salvo.condominioId) setCondominioId(salvo.condominioId);
+    if (salvo.mesReferencia) setMesReferencia(salvo.mesReferencia);
+    if (salvo.numeroUnidades) setNumeroUnidades(salvo.numeroUnidades);
+    if (salvo.vencimentoBoleto) setVencimentoBoleto(salvo.vencimentoBoleto);
+    if (salvo.despesasOrdinarias) setDespesasOrdinarias(salvo.despesasOrdinarias);
+    if (salvo.despesasExtraordinarias) setDespesasExtraordinarias(salvo.despesasExtraordinarias);
+    if (salvo.unidadesConfig) setUnidadesConfig(salvo.unidadesConfig);
+    if (salvo.taxaMinimaAgua !== undefined) setTaxaMinimaAgua(salvo.taxaMinimaAgua);
+    if (salvo.excedenteAguaTotal !== undefined) setExcedenteAguaTotal(salvo.excedenteAguaTotal);
+    if (salvo.escopoRateioAgua) setEscopoRateioAgua(salvo.escopoRateioAgua);
+    if (salvo.excedentesExtras) setExcedentesExtras(salvo.excedentesExtras);
+    if (salvo.tipoCotaBasica) setTipoCotaBasica(salvo.tipoCotaBasica);
+    if (salvo.tipoRateioFundoReserva) setTipoRateioFundoReserva(salvo.tipoRateioFundoReserva);
+    if (salvo.tipoDespesaExtra) setTipoDespesaExtra(salvo.tipoDespesaExtra);
+    if (salvo.tipoFundoPintura) setTipoFundoPintura(salvo.tipoFundoPintura as any);
+    if (salvo.tipoFundoObras) setTipoFundoObras(salvo.tipoFundoObras as any);
+    if (salvo.tipoRateioAgua) setTipoRateioAgua(salvo.tipoRateioAgua);
+    if (salvo.tipoRateioTaxaMinAgua) setTipoRateioTaxaMinAgua(salvo.tipoRateioTaxaMinAgua);
+    if (salvo.tipoRateioExcedente) setTipoRateioExcedente(salvo.tipoRateioExcedente);
+    if (salvo.fundoReservaValor !== undefined) setFundoReservaValor(salvo.fundoReservaValor);
+    if (salvo.fundoPinturaPorUnidade !== undefined) setFundoPinturaPorUnidade(salvo.fundoPinturaPorUnidade);
+    if (salvo.fundoObrasPorUnidade !== undefined) setFundoObrasPorUnidade(salvo.fundoObrasPorUnidade);
+    if (salvo.taxaBoletoValor !== undefined) setTaxaBoletoValor(salvo.taxaBoletoValor);
+    if (salvo.descricaoFundoObras) setDescricaoFundoObras(salvo.descricaoFundoObras);
+    if (salvo.composicaoAgua) setComposicaoAgua(salvo.composicaoAgua);
+
+    setVisualizacaoAba('editor');
+    setMensagemGeracao(`✓ Orçamento "${salvo.titulo}" carregado com sucesso no formulário de rateio!`);
+    setTimeout(() => setMensagemGeracao(''), 6000);
+  };
+
+  const handleExcluirOrcamento = (id: string, titulo: string) => {
+    if (window.confirm(`Deseja realmente excluir o orçamento "${titulo}" dos relatórios salvos?`)) {
+      setRelatoriosSalvos((prev) => prev.filter((item) => item.id !== id));
+      apiDeleteRelatorioOrcamento(id).catch((err) => console.error('Erro ao excluir relatório no SQLite:', err));
+      if (orcamentoDetalhes?.id === id) {
+        setOrcamentoDetalhes(null);
+      }
+    }
+  };
+
+  const relatoriosFiltrados = useMemo(() => {
+    return relatoriosSalvos.filter((item) => {
+      const matchBusca =
+        !termoPesquisa.trim() ||
+        item.titulo.toLowerCase().includes(termoPesquisa.toLowerCase()) ||
+        item.nomeCondominio.toLowerCase().includes(termoPesquisa.toLowerCase()) ||
+        item.mesReferencia.toLowerCase().includes(termoPesquisa.toLowerCase()) ||
+        (item.observacoes && item.observacoes.toLowerCase().includes(termoPesquisa.toLowerCase()));
+
+      const matchCondo = filtroCondominio === 'todos' || item.condominioId === filtroCondominio;
+      const matchMes = filtroMes === 'todos' || item.mesReferencia === filtroMes;
+
+      return matchBusca && matchCondo && matchMes;
+    });
+  }, [relatoriosSalvos, termoPesquisa, filtroCondominio, filtroMes]);
+
+  const mesesDisponiveisFiltro = useMemo(() => {
+    const setMeses = new Set<string>();
+    relatoriosSalvos.forEach((r) => {
+      if (r.mesReferencia) setMeses.add(r.mesReferencia);
+    });
+    return Array.from(setMeses);
+  }, [relatoriosSalvos]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -1251,36 +1562,86 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
       </div>
 
       {/* Top Header Section */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4 print:hidden">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-[#2d5a32] text-white rounded-xl shadow-xs">
-              <FileText className="w-5 h-5" />
-            </span>
-            <h2 className="text-xl font-bold text-[#1c3220]">
-              2.5 Relatórios de Rateio e Demonstrativo Financeiro por Condomínio
-            </h2>
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-[#2d5a32] text-white rounded-xl shadow-xs">
+                <FileText className="w-5 h-5" />
+              </span>
+              <h2 className="text-xl font-bold text-[#1c3220]">
+                2.5 Relatórios de Rateio e Demonstrativo Financeiro por Condomínio
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Geração de prestação de contas mensal, regras de fundos, resumo financeiro de despesas e fração ideal por morador
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Geração de prestação de contas mensal, regras de fundos, resumo financeiro de despesas e fração ideal por morador
-          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAbrirModalSalvar}
+              className="bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              title="Salvar cópia deste orçamento / relatório"
+            >
+              <Save className="w-4 h-4" />
+              <span>Salvar Orçamento</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="bg-[#2d5a32] hover:bg-[#1f4223] active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Imprimir / Gerar PDF</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Sub-Aba Navigation: Elaborar vs Pesquisar Orçamentos Salvos */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
           <button
-            onClick={handlePrint}
-            className="bg-[#2d5a32] hover:bg-[#1f4223] active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+            type="button"
+            onClick={() => setVisualizacaoAba('editor')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              visualizacaoAba === 'editor'
+                ? 'bg-[#2d5a32] text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
           >
-            <Printer className="w-4 h-4" />
-            <span>Imprimir / Gerar PDF</span>
+            <FileText className="w-4 h-4" />
+            <span>Elaborar Relatório de Rateio</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setVisualizacaoAba('pesquisa')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              visualizacaoAba === 'pesquisa'
+                ? 'bg-[#2d5a32] text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            <span>Pesquisar Relatórios & Orçamentos Salvos</span>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                visualizacaoAba === 'pesquisa' ? 'bg-emerald-800 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {relatoriosSalvos.length}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* BLOCO: Informações do Condomínio (Formulário de Configuração - Oculto na Impressão) */}
-      <div className="bg-[#e8f0e6] p-6 rounded-2xl border border-emerald-200/60 shadow-xs space-y-6 print:hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4 border-slate-100">
-          <div className="flex items-center gap-2">
+      {visualizacaoAba === 'editor' ? (
+        <>
+          {/* BLOCO: Informações do Condomínio (Formulário de Configuração - Oculto na Impressão) */}
+          <div className="bg-[#e8f0e6] p-6 rounded-2xl border border-emerald-200/60 shadow-xs space-y-6 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4 border-slate-100">
+              <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-[#2d5a32]" />
             <h3 className="text-base font-bold text-[#1c3220]">
               Informações do Condomínio & Período
@@ -1396,21 +1757,21 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6 print:border-none print:p-0">
         <div className="border-b pb-4 border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-[#1c3220] uppercase tracking-wider flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-[#2d5a32]" />
+            <h3 className="text-base font-bold text-black uppercase tracking-wider flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-black" />
               <span>1 - Relatório de Despesas & Resumo Financeiro do Mês</span>
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-black font-semibold">
               Discriminação ordenada de todas as despesas operacionais ordinárias, fundos, obras extraordinárias e saneamento
             </p>
           </div>
 
           <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 print:hidden text-xs">
-            <span className="font-bold text-slate-600 text-[11px] uppercase tracking-wider">Itens no PDF:</span>
+            <span className="font-bold text-black text-[11px] uppercase tracking-wider">Itens no PDF:</span>
             <button
               type="button"
               onClick={() => setSecoesRelatorioPDF({ ordinarias: true, fundoReserva: true, extraordinarias: true, fundoPintura: true, fundoObras: true, aguaSaneamento: true, demonstrativoIndividual: true })}
-              className="text-[11px] font-bold text-[#2d5a32] hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-black hover:underline cursor-pointer"
             >
               Marcar Todos
             </button>
@@ -1418,7 +1779,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <button
               type="button"
               onClick={() => setSecoesRelatorioPDF({ ordinarias: false, fundoReserva: false, extraordinarias: false, fundoPintura: false, fundoObras: false, aguaSaneamento: false, demonstrativoIndividual: false })}
-              className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-black hover:underline cursor-pointer"
             >
               Desmarcar Todos
             </button>
@@ -1431,24 +1792,24 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.ordinarias ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.ordinarias}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, ordinarias: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.ordinarias ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#2d5a32]"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>1. Cota básica (despesas ordinárias do mês)</span>
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={addDespesaOrdinaria}
-                className="bg-white border border-[#2d5a32] text-[#2d5a32] hover:bg-[#2d5a32] hover:text-white text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors shadow-2xs cursor-pointer print:hidden"
+                className="bg-white border border-slate-400 text-black hover:bg-black hover:text-white text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors shadow-2xs cursor-pointer print:hidden"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Adicionar Item</span>
@@ -1458,10 +1819,10 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Descrição</th>
-                    <th className="py-2 px-2 w-32">Vencimento / Ref</th>
-                    <th className="py-2 px-2 w-32 text-right">Valor (R$)</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2 text-black">Descrição</th>
+                    <th className="py-2 px-2 w-32 text-black">Vencimento / Ref</th>
+                    <th className="py-2 px-2 w-32 text-right text-black">Valor (R$)</th>
                     <th className="py-2 px-1 w-8 text-center print:hidden"></th>
                   </tr>
                 </thead>
@@ -1478,7 +1839,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                               prev.map((item) => (item.id === d.id ? { ...item, descricao: val } : item))
                             );
                           }}
-                          className="w-full bg-transparent font-medium text-slate-800 focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#2d5a32] rounded px-1"
+                          className="w-full bg-transparent font-medium text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-black rounded px-1"
                         />
                       </td>
                       <td className="py-1.5 px-2">
@@ -1491,7 +1852,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                               prev.map((item) => (item.id === d.id ? { ...item, vencimentoReferencia: val } : item))
                             );
                           }}
-                          className="w-full bg-transparent text-slate-600 focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#2d5a32] rounded px-1 font-mono text-[11px]"
+                          className="w-full bg-transparent text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-black rounded px-1 font-mono text-[11px] font-semibold"
                         />
                       </td>
                       <td className="py-1.5 px-2 text-right">
@@ -1505,7 +1866,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                               prev.map((item) => (item.id === d.id ? { ...item, valor: val } : item))
                             );
                           }}
-                          className="w-full bg-transparent text-right font-mono font-bold text-slate-800 focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#2d5a32] rounded px-1"
+                          className="w-full bg-transparent text-right font-mono font-bold text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-black rounded px-1"
                         />
                       </td>
                       <td className="py-1.5 px-1 text-center print:hidden">
@@ -1521,11 +1882,11 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-300 font-bold text-[#1c3220]">
-                    <td colSpan={2} className="py-2 px-2 text-right">
+                  <tr className="border-t-2 border-slate-400 font-bold text-black">
+                    <td colSpan={2} className="py-2 px-2 text-right text-black font-bold">
                       Subtotal Cota Básica (Ordinárias):
                     </td>
-                    <td className="py-2 px-2 text-right font-mono text-sm">{formatarMoeda(totalOrdinarias)}</td>
+                    <td className="py-2 px-2 text-right font-mono text-sm text-black font-black">{formatarMoeda(totalOrdinarias)}</td>
                     <td className="print:hidden"></td>
                   </tr>
                 </tfoot>
@@ -1547,21 +1908,21 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.fundoReserva ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.fundoReserva}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, fundoReserva: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.fundoReserva ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>2. Fundo Reserva</span>
                 </h4>
               </div>
-              <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+              <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                 Total Arrecadado: {formatarMoeda(totaisDemonstrativo.fundoReserva)}
               </span>
             </div>
@@ -1569,16 +1930,16 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Tipo de Regra / Cálculo</th>
-                    <th className="py-2 px-2 w-48 text-center">Alíquota / Valor por Unidade</th>
-                    <th className="py-2 px-2 w-48 text-right">Total Calculado do Fundo (R$)</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2 text-black">Tipo de Regra / Cálculo</th>
+                    <th className="py-2 px-2 w-48 text-center text-black">Alíquota / Valor por Unidade</th>
+                    <th className="py-2 px-2 w-48 text-right text-black">Total Calculado do Fundo (R$)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="bg-white hover:bg-slate-100/60 transition-colors">
                     <td className="py-2 px-2">
-                      <div className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">% Percentual sobre a Cota Básica</div>
+                      <div className="font-semibold text-black text-[11px] uppercase tracking-wider">% Percentual sobre a Cota Básica</div>
                     </td>
                     <td className="py-2 px-2 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -1587,12 +1948,12 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                           step="0.1"
                           value={fundoReservaValor}
                           onChange={(e) => setFundoReservaValor(parseFloat(e.target.value) || 0)}
-                          className="w-28 p-1.5 border border-slate-200 rounded-lg font-mono font-bold text-slate-800 text-right bg-white focus:ring-1 focus:ring-[#2d5a32] focus:outline-none"
+                          className="w-28 p-1.5 border border-slate-300 rounded-lg font-mono font-bold text-black text-right bg-white focus:ring-1 focus:ring-black focus:outline-none"
                         />
-                        <span className="font-bold text-slate-600">%</span>
+                        <span className="font-bold text-black">%</span>
                       </div>
                     </td>
-                    <td className="py-2 px-2 text-right font-mono font-bold text-emerald-800 text-sm">
+                    <td className="py-2 px-2 text-right font-mono font-bold text-black text-sm">
                       {formatarMoeda(totaisDemonstrativo.fundoReserva)}
                     </td>
                   </tr>
@@ -1615,24 +1976,24 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.extraordinarias ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.extraordinarias}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, extraordinarias: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.extraordinarias ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>3. Despesas Extraordinárias e Obras</span>
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={addDespesaExtraordinaria}
-                className="bg-white border border-amber-600 text-amber-700 hover:bg-amber-600 hover:text-white text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors shadow-2xs cursor-pointer print:hidden"
+                className="bg-white border border-slate-400 text-black hover:bg-black hover:text-white text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors shadow-2xs cursor-pointer print:hidden"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Adicionar Obra</span>
@@ -1642,10 +2003,10 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Descrição da Obra</th>
-                    <th className="py-2 px-2 w-28 text-center">% Rateio</th>
-                    <th className="py-2 px-2 w-32 text-right">Valor R$</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2 text-black">Descrição da Obra</th>
+                    <th className="py-2 px-2 w-28 text-center text-black">% Rateio</th>
+                    <th className="py-2 px-2 w-32 text-right text-black">Valor R$</th>
                     <th className="py-2 px-1 w-8 text-center print:hidden"></th>
                   </tr>
                 </thead>
@@ -1662,7 +2023,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                               prev.map((item) => (item.id === e.id ? { ...item, descricao: val } : item))
                             );
                           }}
-                          className="w-full bg-transparent font-medium text-slate-800 focus:outline-none focus:bg-white focus:ring-1 focus:ring-amber-500 rounded px-1"
+                          className="w-full bg-transparent font-medium text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-black rounded px-1"
                         />
                       </td>
                       <td className="py-1.5 px-2 text-center">
@@ -1675,7 +2036,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                               prev.map((item) => (item.id === e.id ? { ...item, percentualRateio: val } : item))
                             );
                           }}
-                          className="w-full bg-transparent text-center font-mono text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-amber-500 rounded px-1 text-[11px]"
+                          className="w-full bg-transparent text-center font-mono text-black font-semibold focus:outline-none focus:bg-white focus:ring-1 focus:ring-black rounded px-1 text-[11px]"
                         />
                       </td>
                       <td className="py-1.5 px-2 text-right">
@@ -1689,7 +2050,7 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                               prev.map((item) => (item.id === e.id ? { ...item, valor: val } : item))
                             );
                           }}
-                          className="w-full bg-transparent text-right font-mono font-bold text-slate-800 focus:outline-none focus:bg-white focus:ring-1 focus:ring-amber-500 rounded px-1"
+                          className="w-full bg-transparent text-right font-mono font-bold text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-black rounded px-1"
                         />
                       </td>
                       <td className="py-1.5 px-1 text-center print:hidden">
@@ -1705,11 +2066,11 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-300 font-bold text-[#1c3220]">
-                    <td colSpan={2} className="py-2 px-2 text-right">
+                  <tr className="border-t-2 border-slate-400 font-bold text-black">
+                    <td colSpan={2} className="py-2 px-2 text-right text-black font-bold">
                       Subtotal Extraordinárias:
                     </td>
-                    <td className="py-2 px-2 text-right font-mono text-sm">{formatarMoeda(totalExtraordinarias)}</td>
+                    <td className="py-2 px-2 text-right font-mono text-sm text-black font-black">{formatarMoeda(totalExtraordinarias)}</td>
                     <td className="print:hidden"></td>
                   </tr>
                 </tfoot>
@@ -1731,21 +2092,21 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.fundoPintura ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.fundoPintura}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, fundoPintura: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.fundoPintura ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>4. Fundo Pintura</span>
                 </h4>
               </div>
-              <span className="text-xs font-mono font-bold text-indigo-800 bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-300">
+              <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                 Total Arrecadado: {formatarMoeda(totaisDemonstrativo.fundoPintura)}
               </span>
             </div>
@@ -1753,30 +2114,30 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Descrição / Destinação</th>
-                    <th className="py-2 px-2 w-48 text-center">Valor por Unidade (R$/Un)</th>
-                    <th className="py-2 px-2 w-48 text-right">Total Calculado do Fundo (R$)</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2 text-black">Descrição / Destinação</th>
+                    <th className="py-2 px-2 w-48 text-center text-black">Valor por Unidade (R$/Un)</th>
+                    <th className="py-2 px-2 w-48 text-right text-black">Total Calculado do Fundo (R$)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="bg-white hover:bg-slate-100/60 transition-colors">
-                    <td className="py-2 px-2 font-medium text-slate-700">
+                    <td className="py-2 px-2 font-medium text-black">
                       Fundo de Reserva Especial para Pintura de Fachada e Paredes
                     </td>
                     <td className="py-2 px-2 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className="font-bold text-slate-500">R$</span>
+                        <span className="font-bold text-black">R$</span>
                         <input
                           type="number"
                           step="0.01"
                           value={fundoPinturaPorUnidade}
                           onChange={(e) => setFundoPinturaPorUnidade(parseFloat(e.target.value) || 0)}
-                          className="w-28 p-1.5 border border-slate-200 rounded-lg font-mono font-bold text-slate-800 text-right bg-white focus:ring-1 focus:ring-[#2d5a32] focus:outline-none"
+                          className="w-28 p-1.5 border border-slate-300 rounded-lg font-mono font-bold text-black text-right bg-white focus:ring-1 focus:ring-black focus:outline-none"
                         />
                       </div>
                     </td>
-                    <td className="py-2 px-2 text-right font-mono font-bold text-indigo-800 text-sm">
+                    <td className="py-2 px-2 text-right font-mono font-bold text-black text-sm">
                       {formatarMoeda(totaisDemonstrativo.fundoPintura)}
                     </td>
                   </tr>
@@ -1799,21 +2160,21 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.fundoObras ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-slate-700 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.fundoObras}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, fundoObras: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.fundoObras ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>5. Fundo Obras</span>
                 </h4>
               </div>
-              <span className="text-xs font-mono font-bold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-300">
+              <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                 Total Arrecadado: {formatarMoeda(totaisDemonstrativo.fundoObras)}
               </span>
             </div>
@@ -1821,36 +2182,36 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Descrição / Destinação</th>
-                    <th className="py-2 px-2 w-48 text-center">Valor por Unidade (R$/Un)</th>
-                    <th className="py-2 px-2 w-48 text-right">Total Calculado do Fundo (R$)</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2 text-black">Descrição / Destinação</th>
+                    <th className="py-2 px-2 w-48 text-center text-black">Valor por Unidade (R$/Un)</th>
+                    <th className="py-2 px-2 w-48 text-right text-black">Total Calculado do Fundo (R$)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="bg-white hover:bg-slate-100/60 transition-colors">
-                    <td className="py-2 px-2 font-medium text-slate-700">
+                    <td className="py-2 px-2 font-medium text-black">
                       <input
                         type="text"
                         value={descricaoFundoObras}
                         onChange={(e) => setDescricaoFundoObras(e.target.value)}
-                        className="w-full p-1.5 border-b border-transparent hover:border-slate-300 focus:border-purple-500 bg-transparent focus:bg-white focus:outline-none transition-all"
+                        className="w-full p-1.5 border-b border-transparent hover:border-slate-300 focus:border-black bg-transparent focus:bg-white focus:outline-none transition-all text-black font-medium"
                         placeholder="Ex: Fundo Permanente de Obras..."
                       />
                     </td>
                     <td className="py-2 px-2 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className="font-bold text-slate-500">R$</span>
+                        <span className="font-bold text-black">R$</span>
                         <input
                           type="number"
                           step="0.01"
                           value={fundoObrasPorUnidade}
                           onChange={(e) => setFundoObrasPorUnidade(parseFloat(e.target.value) || 0)}
-                          className="w-28 p-1.5 border border-slate-200 rounded-lg font-mono font-bold text-slate-800 text-right bg-white focus:ring-1 focus:ring-[#2d5a32] focus:outline-none"
+                          className="w-28 p-1.5 border border-slate-300 rounded-lg font-mono font-bold text-black text-right bg-white focus:ring-1 focus:ring-black focus:outline-none"
                         />
                       </div>
                     </td>
-                    <td className="py-2 px-2 text-right font-mono font-bold text-purple-800 text-sm">
+                    <td className="py-2 px-2 text-right font-mono font-bold text-black text-sm">
                       {formatarMoeda(totaisDemonstrativo.fundoObras)}
                     </td>
                   </tr>
@@ -1873,92 +2234,259 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.aguaSaneamento ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-sky-300 hover:border-sky-400 text-[11px] font-bold text-sky-900 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.aguaSaneamento}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, aguaSaneamento: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.aguaSaneamento ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-sky-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>6. Custos de Água e Saneamento do Mês</span>
                 </h4>
               </div>
-              <span className="text-xs font-mono font-bold text-sky-900 bg-sky-100 px-2.5 py-0.5 rounded-full border border-sky-300">
+              <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                 Total Água: {formatarMoeda(totalAgua)}
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* ──────────────────────────────────────────────────────── */}
+            {/* 6.1 Taxa Mínima Sanepar/Concessionária                  */}
+            {/* ──────────────────────────────────────────────────────── */}
+            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden">
+              {/* Header 6.1 */}
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-black bg-slate-200 px-1.5 py-0.5 rounded-md">6.1</span>
+                  <h5 className="font-bold text-black text-xs flex items-center gap-1.5">
+                    Taxa Mínima —{' '}
+                    <input
+                      type="text"
+                      value={composicaoAgua}
+                      onChange={(e) => setComposicaoAgua(e.target.value)}
+                      className="inline-block w-36 px-1 py-0.5 text-xs border-b border-transparent hover:border-slate-400 focus:border-black bg-transparent focus:bg-white focus:outline-none transition-all text-black font-bold"
+                      title="Clique para editar o nome da concessionária"
+                    />
+                  </h5>
+                </div>
+                <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  {formatarMoeda(taxaMinimaAgua || 0)}
+                </span>
+              </div>
+
+              {/* Seletor de Rateio 6.1 — oculto no PDF */}
+              <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-200 print:hidden">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] font-bold text-black uppercase tracking-tight pr-1">Regra de Rateio:</span>
+                  {(['fracao_ideal', 'divisao_igual', 'moradores'] as const).map((tipo) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => setTipoRateioTaxaMinAgua(tipo)}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                        tipoRateioTaxaMinAgua === tipo
+                          ? 'bg-black text-white shadow-xs'
+                          : 'text-black hover:bg-slate-200 bg-white border border-slate-300'
+                      }`}
+                    >
+                      {tipo === 'fracao_ideal' ? 'Fração Ideal' : tipo === 'divisao_igual' ? 'Divisão Igualitária' : 'Por Moradores'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tabela 6.1 */}
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-sky-200 text-sky-700 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Componente de Consumo</th>
-                    <th className="py-2 px-2 w-48 text-right">Valor Total Apurado (R$)</th>
-                    <th className="py-2 px-2 w-48 text-right">Média por Unidade (R$)</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px] bg-white">
+                    <th className="py-2 px-3 text-black">Componente</th>
+                    <th className="py-2 px-3 w-48 text-right text-black">Valor Total Apurado (R$)</th>
+                    <th className="py-2 px-3 w-44 text-right text-black">Média por Unidade (R$)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-sky-200/60 bg-white">
-                  <tr>
-                    <td className="py-2 px-2 font-medium text-slate-800">
-                      Taxa Mínima de Água & Esgoto (
-                      <input
-                        type="text"
-                        value={composicaoAgua}
-                        onChange={(e) => setComposicaoAgua(e.target.value)}
-                        className="inline-block w-40 px-1 py-0.5 text-xs border-b border-transparent hover:border-slate-300 focus:border-sky-500 bg-transparent focus:bg-white focus:outline-none transition-all text-sky-800 font-bold"
-                      />
-                      )
+                <tbody>
+                  <tr className="bg-white">
+                    <td className="py-2.5 px-3 font-semibold text-black">
+                      Taxa Mínima {composicaoAgua}
                     </td>
-                    <td className="py-2 px-2 text-right">
+                    <td className="py-2.5 px-3 text-right">
                       <input
                         type="number"
                         step="0.01"
                         value={taxaMinimaAgua}
                         onChange={(e) => setTaxaMinimaAgua(parseFloat(e.target.value) || 0)}
-                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-slate-800 bg-white focus:ring-1 focus:ring-sky-500 focus:outline-none"
+                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-black bg-white focus:ring-1 focus:ring-black focus:outline-none"
                       />
                     </td>
-                    <td className="py-2 px-2 text-right font-mono text-slate-600">
+                    <td className="py-2.5 px-3 text-right font-mono text-black font-semibold">
                       {formatarMoeda((taxaMinimaAgua || 0) / (numeroUnidades || 1))}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 px-2 font-medium text-slate-800">Excedente de Consumo (Medição Individualizada/Hidrômetros)</td>
-                    <td className="py-2 px-2 text-right">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={excedenteAguaTotal}
-                        onChange={(e) => setExcedenteAguaTotal(parseFloat(e.target.value) || 0)}
-                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-slate-800 bg-white focus:ring-1 focus:ring-sky-500 focus:outline-none"
-                      />
-                    </td>
-                    <td className="py-2 px-2 text-right font-mono text-slate-600">
-                      {formatarMoeda((excedenteAguaTotal || 0) / (numeroUnidades || 1))}
                     </td>
                   </tr>
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-sky-300 font-bold text-sky-950 bg-sky-100/70">
-                    <td className="py-2 px-2 uppercase text-right">Subtotal Água e Saneamento:</td>
-                    <td className="py-2 px-2 text-right font-mono text-sm">{formatarMoeda(totalAgua)}</td>
-                    <td className="py-2 px-2 text-right font-mono text-xs">{formatarMoeda(totalAgua / (numeroUnidades || 1))}</td>
+                  <tr className="border-t border-slate-300 bg-slate-50 font-bold text-black">
+                    <td className="py-2 px-3 text-right text-[11px] uppercase text-black font-bold">Subtotal 6.1:</td>
+                    <td className="py-2 px-3 text-right font-mono text-black font-bold">{formatarMoeda(taxaMinimaAgua || 0)}</td>
+                    <td className="py-2 px-3 text-right font-mono text-[11px] text-black font-bold">{formatarMoeda((taxaMinimaAgua || 0) / (numeroUnidades || 1))}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
+            {/* ──────────────────────────────────────────────────────── */}
+            {/* 6.2 Excedente de Consumo                                */}
+            {/* ──────────────────────────────────────────────────────── */}
+            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden">
+              {/* Header 6.2 */}
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-black bg-slate-200 px-1.5 py-0.5 rounded-md">6.2</span>
+                  <h5 className="font-bold text-black text-xs">Excedente de Consumo</h5>
+                </div>
+                <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  {formatarMoeda((excedenteAguaTotal || 0) + totalExcedentesExtras)}
+                </span>
+              </div>
+
+              {/* Seletor de Rateio 6.2 — oculto no PDF */}
+              <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-200 print:hidden">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] font-bold text-black uppercase tracking-tight pr-1">Regra de Rateio:</span>
+                  {(['fracao_ideal', 'divisao_igual', 'moradores'] as const).map((tipo) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => setTipoRateioExcedente(tipo)}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                        tipoRateioExcedente === tipo
+                          ? 'bg-black text-white shadow-xs'
+                          : 'text-black hover:bg-slate-200 bg-white border border-slate-300'
+                      }`}
+                    >
+                      {tipo === 'fracao_ideal' ? 'Fração Ideal' : tipo === 'divisao_igual' ? 'Divisão Igualitária' : 'Por Moradores'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tabela 6.2 */}
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px] bg-white">
+                    <th className="py-2 px-3 text-black">Componente</th>
+                    <th className="py-2 px-3 w-48 text-right text-black">Valor Total Apurado (R$)</th>
+                    <th className="py-2 px-3 w-44 text-right text-black">Média por Unidade (R$)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {/* Linha principal: Excedente de Consumo */}
+                  <tr className="bg-white">
+                    <td className="py-2.5 px-3 font-semibold text-black">Excedente de Consumo</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={excedenteAguaTotal}
+                        onChange={(e) => setExcedenteAguaTotal(parseFloat(e.target.value) || 0)}
+                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-black bg-white focus:ring-1 focus:ring-black focus:outline-none"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-black font-semibold">
+                      {formatarMoeda((excedenteAguaTotal || 0) / (numeroUnidades || 1))}
+                    </td>
+                  </tr>
+
+                  {/* Linhas extras de excedente (nome editável) */}
+                  {excedentesExtras.map((extra) => (
+                    <tr key={extra.id} className="bg-slate-50/50">
+                      <td className="py-2 px-3 font-medium text-black">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={extra.nome}
+                            onChange={(e) => updateExcedenteExtra(extra.id, 'nome', e.target.value)}
+                            className="flex-1 px-1.5 py-0.5 text-xs border border-slate-300 rounded focus:border-black focus:ring-1 focus:ring-black bg-white outline-none text-black font-semibold"
+                            placeholder="Nome do excedente"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeExcedenteExtra(extra.id)}
+                            className="text-red-400 hover:text-red-700 transition-colors cursor-pointer print:hidden shrink-0"
+                            title="Remover linha"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={extra.valor}
+                          onChange={(e) => updateExcedenteExtra(extra.id, 'valor', parseFloat(e.target.value) || 0)}
+                          className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-black bg-white focus:ring-1 focus:ring-black focus:outline-none"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-black font-semibold">
+                        {formatarMoeda((extra.valor || 0) / (numeroUnidades || 1))}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {/* Botão Adicionar Excedente Extra */}
+                  <tr className="print:hidden">
+                    <td colSpan={3} className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={addExcedenteExtra}
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-black hover:text-white bg-white hover:bg-black border border-slate-400 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                        Adicionar Excedente Extra
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-300 bg-slate-50 font-bold text-black">
+                    <td className="py-2 px-3 text-right text-[11px] uppercase text-black font-bold">Subtotal 6.2:</td>
+                    <td className="py-2 px-3 text-right font-mono text-black font-bold">{formatarMoeda((excedenteAguaTotal || 0) + totalExcedentesExtras)}</td>
+                    <td className="py-2 px-3 text-right font-mono text-[11px] text-black font-bold">{formatarMoeda(((excedenteAguaTotal || 0) + totalExcedentesExtras) / (numeroUnidades || 1))}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Total Geral 6.1 + 6.2 */}
+            <div className="flex justify-end">
+              <div className="bg-slate-900 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-3">
+                <span className="uppercase tracking-wide opacity-80">Total Água e Saneamento (6.1 + 6.2):</span>
+                <span className="font-mono text-sm">{formatarMoeda(totalAgua)}</span>
+              </div>
+            </div>
+
+            {/* Rateio por grupos — oculto no PDF (print:hidden já no componente) */}
             <TabelaFracoesBreakdown
               demonstrativoUnidades={demonstrativoUnidades}
-              getValue={(u) => escopoRateioAgua === 'apenas_excedente' ? u.excedenteAguaUnidade : u.taxaMinAguaUnidade + u.excedenteAguaUnidade}
-              titulo="Rateio por Grupo de Fração (Água & Saneamento)"
-              borderColor="border-sky-200"
-              tipoRateio={tipoRateioAgua}
-              onTipoRateioChange={setTipoRateioAgua}
+              getValue={(u) => u.taxaMinAguaUnidade}
+              titulo="Rateio — Taxa Mínima Sanepar"
+              borderColor="border-slate-300"
+              tipoRateio={tipoRateioTaxaMinAgua}
+              onTipoRateioChange={setTipoRateioTaxaMinAgua}
+              unidadesConfig={unidadesConfig}
+              setUnidadesConfig={setUnidadesConfig}
+            />
+
+            <TabelaFracoesBreakdown
+              demonstrativoUnidades={demonstrativoUnidades}
+              getValue={(u) => u.excedenteAguaUnidade}
+              titulo="Rateio — Excedente de Consumo"
+              borderColor="border-slate-300"
+              tipoRateio={tipoRateioExcedente}
+              onTipoRateioChange={setTipoRateioExcedente}
               unidadesConfig={unidadesConfig}
               setUnidadesConfig={setUnidadesConfig}
               escopoRateioAgua={escopoRateioAgua}
@@ -1972,21 +2500,21 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
           <div className={`bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200/60 space-y-3 transition-all ${!secoesRelatorioPDF.taxaBoleto ? 'print:hidden opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-emerald-300 hover:border-emerald-400 text-[11px] font-bold text-emerald-900 select-none shadow-2xs print:hidden">
+                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-300 hover:border-slate-400 text-[11px] font-bold text-black select-none shadow-2xs print:hidden">
                   <input
                     type="checkbox"
                     checked={secoesRelatorioPDF.taxaBoleto}
                     onChange={(e) => setSecoesRelatorioPDF((prev) => ({ ...prev, taxaBoleto: e.target.checked }))}
-                    className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded text-black focus:ring-black cursor-pointer"
                   />
                   <span>{secoesRelatorioPDF.taxaBoleto ? 'Incluir no PDF' : 'Ocultar no PDF'}</span>
                 </label>
-                <h4 className="font-bold text-[#2d5a32] text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#2d5a32]"></span>
+                <h4 className="font-bold text-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-black"></span>
                   <span>7. Taxa de Boleto</span>
                 </h4>
               </div>
-              <span className="text-xs font-mono font-bold text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+              <span className="text-xs font-mono font-bold text-black bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                 Total Previsto: {formatarMoeda(totalTaxaBoletoCalculado)}
               </span>
             </div>
@@ -1994,15 +2522,15 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-emerald-200 text-emerald-800 font-bold uppercase text-[10px]">
-                    <th className="py-2 px-2">Descrição</th>
-                    <th className="py-2 px-2 w-48 text-right">Valor por Unidade (R$)</th>
-                    <th className="py-2 px-2 w-48 text-right">Valor Total Apurado (R$)</th>
+                  <tr className="border-b border-slate-300 text-black font-bold uppercase text-[10px]">
+                    <th className="py-2 px-2 text-black">Descrição</th>
+                    <th className="py-2 px-2 w-48 text-right text-black">Valor por Unidade (R$)</th>
+                    <th className="py-2 px-2 w-48 text-right text-black">Valor Total Apurado (R$)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-emerald-200/60 bg-white">
+                <tbody className="divide-y divide-slate-200 bg-white">
                   <tr>
-                    <td className="py-2 px-2 font-medium text-slate-800">
+                    <td className="py-2 px-2 font-medium text-black">
                       Taxa de Emissão de Boleto (Cobrança)
                     </td>
                     <td className="py-2 px-2 text-right">
@@ -2011,10 +2539,10 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                         step="0.01"
                         value={taxaBoletoValor}
                         onChange={(e) => setTaxaBoletoValor(parseFloat(e.target.value) || 0)}
-                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-slate-800 bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                        className="w-32 p-1 border border-slate-300 rounded font-mono font-bold text-right text-black bg-white focus:ring-1 focus:ring-black focus:outline-none"
                       />
                     </td>
-                    <td className="py-2 px-2 text-right font-mono font-bold text-emerald-800">
+                    <td className="py-2 px-2 text-right font-mono font-bold text-black">
                       {formatarMoeda(totalTaxaBoletoCalculado)}
                     </td>
                   </tr>
@@ -2290,30 +2818,76 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                       <span className="px-2 py-1 text-xs font-bold text-slate-800 bg-transparent">{row.nomeUnidade}</span>
                     </td>
                   )}
+                  {/* Vencimento — read-only (derivado das despesas) */}
                   {colunasPDF.vencimento && <td className="py-2.5 px-2 text-center text-slate-600 font-mono text-[11px]">{row.vencimento}</td>}
                   {!colunasPDF.vencimento && <td className="py-2.5 px-2 text-center text-slate-600 font-mono text-[11px] opacity-30 print:hidden">{row.vencimento}</td>}
-                  
+
+                  {/* Taxa de boleto — read-only (calculado) */}
                   {colunasPDF.taxaBoleto && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.taxaBoleto)}</td>}
                   {!colunasPDF.taxaBoleto && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.taxaBoleto)}</td>}
-                  
-                  {colunasPDF.cotaBasica && <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800">{formatarMoeda(row.cotaBasica)}</td>}
+
+                  {/* Cota Básica — calculada; exibe a fração ideal editável como sublabel no print:hidden */}
+                  {colunasPDF.cotaBasica && (
+                    <td className="py-1.5 px-2 text-right">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-mono font-semibold text-slate-800 text-xs">{formatarMoeda(row.cotaBasica)}</span>
+                        {/* Fração Ideal editável inline — visível na tela, omitida no PDF */}
+                        <div className="flex items-center gap-1 print:hidden" title="Editar fração ideal desta unidade">
+                          <input
+                            type="number"
+                            step="0.0001"
+                            min="0"
+                            max="100"
+                            value={unidadesConfig.find(u => u.unidadeId === row.unidadeId)?.fracaoIdeal ?? row.fracaoIdeal}
+                            onChange={(e) => handleFracaoUnidadeChange(row.unidadeId, e.target.value)}
+                            className="w-[68px] px-1.5 py-0.5 text-[10px] font-mono text-amber-900 bg-amber-50 border border-amber-200 hover:border-amber-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-400 rounded text-right outline-none transition-all"
+                          />
+                          <span className="text-[9px] text-slate-400 font-semibold">%</span>
+                        </div>
+                      </div>
+                    </td>
+                  )}
                   {!colunasPDF.cotaBasica && <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800 opacity-30 print:hidden">{formatarMoeda(row.cotaBasica)}</td>}
-                  
+
+                  {/* Despesas Extraordinárias — calculada */}
                   {colunasPDF.despesaExtraordinaria && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.despesaExtra || 0)}</td>}
                   {!colunasPDF.despesaExtraordinaria && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.despesaExtra || 0)}</td>}
 
+                  {/* Fundo Obras — calculado */}
                   {colunasPDF.fundoObras && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoObras)}</td>}
                   {!colunasPDF.fundoObras && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.fundoObras)}</td>}
 
+                  {/* Fundo Reserva — calculado */}
                   {colunasPDF.fundoReserva && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoReserva)}</td>}
                   {!colunasPDF.fundoReserva && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.fundoReserva)}</td>}
-                  
-                  {colunasPDF.fundoPintura && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.fundoPintura)}</td>}
+
+                  {/* Fundo Pintura — calculado; exibe nº de moradores editável como sublabel */}
+                  {colunasPDF.fundoPintura && (
+                    <td className="py-1.5 px-2 text-right">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-mono text-slate-700 text-xs">{formatarMoeda(row.fundoPintura)}</span>
+                        {/* Moradores editável inline — visível na tela, omitido no PDF */}
+                        <div className="flex items-center gap-1 print:hidden" title="Editar nº de moradores desta unidade">
+                          <input
+                            type="number"
+                            min="0"
+                            max="99"
+                            value={unidadesConfig.find(u => u.unidadeId === row.unidadeId)?.moradores ?? row.moradores ?? 2}
+                            onChange={(e) => handleMoradoresUnidadeChange(row.unidadeId, e.target.value)}
+                            className="w-[48px] px-1.5 py-0.5 text-[10px] font-mono text-indigo-900 bg-indigo-50 border border-indigo-200 hover:border-indigo-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-400 rounded text-center outline-none transition-all"
+                          />
+                          <span className="text-[9px] text-slate-400 font-semibold">hab</span>
+                        </div>
+                      </div>
+                    </td>
+                  )}
                   {!colunasPDF.fundoPintura && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.fundoPintura)}</td>}
 
+                  {/* Taxa Mínima Água — calculada */}
                   {colunasPDF.taxaMinAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.taxaMinAguaUnidade)}</td>}
                   {!colunasPDF.taxaMinAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.taxaMinAguaUnidade)}</td>}
-                  
+
+                  {/* Excedente Água — calculado */}
                   {colunasPDF.excedenteAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700">{formatarMoeda(row.excedenteAguaUnidade)}</td>}
                   {!colunasPDF.excedenteAgua && <td className="py-2.5 px-2 text-right font-mono text-slate-700 opacity-30 print:hidden">{formatarMoeda(row.excedenteAguaUnidade)}</td>}
                   
@@ -2429,16 +3003,558 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
             <p className="text-xs font-semibold text-slate-500">
               Relatório pronto para exportação, impressão ou envio aos condôminos em PDF.
             </p>
-            <button
-              onClick={handlePrint}
-              className="bg-[#2d5a32] hover:bg-[#1f4223] active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Imprimir / Gerar PDF</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleAbrirModalSalvar}
+                className="bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Salvar Orçamento</span>
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="bg-[#2d5a32] hover:bg-[#1f4223] active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Imprimir / Gerar PDF</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
+        </>
+      ) : (
+        /* ABA: PESQUISAR RELATÓRIOS & ORÇAMENTOS SALVOS */
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Header & Filtros da Pesquisa */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4 border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-emerald-100 text-[#2d5a32] rounded-xl">
+                  <FolderOpen className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-[#1c3220]">
+                    Banco de Orçamentos & Relatórios Salvos
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Consulte, filtre, visualize detalhes e recarregue instantaneamente qualquer orçamento salvo
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVisualizacaoAba('editor')}
+                  className="bg-[#2d5a32] hover:bg-[#1f4223] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Orçamento / Voltar ao Editor</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Barra de Pesquisa e Filtros */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
+              {/* Campo de Busca Texto */}
+              <div className="md:col-span-6 relative">
+                <label className="block font-bold text-slate-700 mb-1">Buscar por palavra-chave:</label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={termoPesquisa}
+                    onChange={(e) => setTermoPesquisa(e.target.value)}
+                    placeholder="Digite o título, condomínio, mês ou anotações..."
+                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-300 font-medium text-slate-800 focus:ring-2 focus:ring-[#2d5a32] focus:border-[#2d5a32] outline-none"
+                  />
+                  {termoPesquisa && (
+                    <button
+                      type="button"
+                      onClick={() => setTermoPesquisa('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Filtro por Condomínio */}
+              <div className="md:col-span-3">
+                <label className="block font-bold text-slate-700 mb-1">Filtrar por Condomínio:</label>
+                <select
+                  value={filtroCondominio}
+                  onChange={(e) => setFiltroCondominio(e.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 font-semibold text-slate-800 bg-slate-50 focus:ring-2 focus:ring-[#2d5a32] outline-none"
+                >
+                  <option value="todos">Todos os Condomínios</option>
+                  {condominios.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                  <option value="custom">Condomínios Customizados</option>
+                </select>
+              </div>
+
+              {/* Filtro por Mês */}
+              <div className="md:col-span-3">
+                <label className="block font-bold text-slate-700 mb-1">Filtrar por Mês:</label>
+                <select
+                  value={filtroMes}
+                  onChange={(e) => setFiltroMes(e.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 font-semibold text-slate-800 bg-slate-50 focus:ring-2 focus:ring-[#2d5a32] outline-none"
+                >
+                  <option value="todos">Todos os Meses</option>
+                  {mesesDisponiveisFiltro.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Status e Limpar Filtros */}
+            {(termoPesquisa || filtroCondominio !== 'todos' || filtroMes !== 'todos') && (
+              <div className="flex items-center justify-between pt-2 text-xs text-slate-500 border-t border-slate-100">
+                <span>
+                  Exibindo <strong>{relatoriosFiltrados.length}</strong> de <strong>{relatoriosSalvos.length}</strong> orçamentos salvos.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTermoPesquisa('');
+                    setFiltroCondominio('todos');
+                    setFiltroMes('todos');
+                  }}
+                  className="text-emerald-700 hover:text-emerald-900 font-bold hover:underline cursor-pointer"
+                >
+                  Limpar todos os filtros
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Cards dos Relatórios / Orçamentos Salvos */}
+          {relatoriosSalvos.length === 0 ? (
+            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-4 shadow-xs">
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-[#2d5a32]">
+                <Folder className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-[#1c3220]">Nenhum orçamento salvo ainda</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Quando estiver elaborando um relatório de rateio, clique no botão verde <strong className="text-emerald-800">"Salvar Orçamento"</strong> no topo para guardar um histórico completo com todas as despesas e rateios.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVisualizacaoAba('editor')}
+                className="bg-[#2d5a32] hover:bg-[#1f4223] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Ir para o Editor de Relatório</span>
+              </button>
+            </div>
+          ) : relatoriosFiltrados.length === 0 ? (
+            <div className="bg-white p-10 rounded-2xl border border-slate-200 text-center space-y-3 shadow-xs">
+              <Search className="w-8 h-8 text-slate-400 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-700">Nenhum orçamento encontrado</h4>
+              <p className="text-xs text-slate-500">
+                Nenhum orçamento corresponde aos critérios de busca ou filtros selecionados.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTermoPesquisa('');
+                  setFiltroCondominio('todos');
+                  setFiltroMes('todos');
+                }}
+                className="text-xs font-bold text-[#2d5a32] hover:underline cursor-pointer"
+              >
+                Limpar filtros de busca
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {relatoriosFiltrados.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group"
+                >
+                  {/* Top Header Card */}
+                  <div className="p-5 space-y-3 border-b border-slate-100">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#2d5a32] border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <Building2 className="w-3 h-3" />
+                          {item.nomeCondominio}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-900 line-clamp-2 leading-tight">
+                          {item.titulo}
+                        </h4>
+                      </div>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded-md shrink-0">
+                        {item.numeroUnidades} un
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        Ref: <strong className="text-slate-700">{item.mesReferencia}</strong>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        {item.dataSalvamento}
+                      </span>
+                    </div>
+
+                    {/* Total Geral em Destaque */}
+                    <div className="bg-[#f2f7f1] p-3 rounded-xl border border-[#2d5a32]/20 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">Total Arrecadado:</span>
+                      <span className="text-base font-mono font-black text-[#1c3220]">
+                        {formatarMoeda(item.totalGeral)}
+                      </span>
+                    </div>
+
+                    {/* Mini Discriminativo das Categorias */}
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div>
+                        <span className="text-slate-400">Ordinárias: </span>
+                        <strong className="text-slate-700">{formatarMoeda(item.totalOrdinarias)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Reserva: </span>
+                        <strong className="text-slate-700">{formatarMoeda(item.totalFundoReserva)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Obras: </span>
+                        <strong className="text-slate-700">{formatarMoeda(item.totalFundoObras)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Pintura: </span>
+                        <strong className="text-slate-700">{formatarMoeda(item.totalFundoPintura)}</strong>
+                      </div>
+                    </div>
+
+                    {/* Observações / Notas se houver */}
+                    {item.observacoes && (
+                      <div className="text-[11px] text-slate-600 bg-amber-50/60 p-2 rounded-lg border border-amber-200/60 italic line-clamp-2">
+                        "{item.observacoes}"
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ações do Card */}
+                  <div className="p-3 bg-slate-50/80 flex items-center justify-between gap-1.5 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => handleCarregarOrcamento(item)}
+                      className="bg-[#2d5a32] hover:bg-[#1e3d22] text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer flex-1 justify-center"
+                      title="Carregar este orçamento para o formulário de rateio"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>Carregar no Relatório</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setOrcamentoDetalhes(item)}
+                      className="p-2 rounded-xl border border-slate-200 hover:bg-white text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+                      title="Visualizar detalhes do orçamento"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleExcluirOrcamento(item.id, item.titulo)}
+                      className="p-2 rounded-xl border border-slate-200 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      title="Excluir orçamento salvo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 1: SALVAR ORÇAMENTO ATUAL                         */}
+      {/* ======================================================== */}
+      {modalSalvarAberto && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <form onSubmit={handleConfirmarSalvarOrcamento}>
+              {/* Header */}
+              <div className="bg-[#1c3220] text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-800/60 rounded-xl text-emerald-200">
+                    <Save className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Salvar Orçamento / Demonstrativo</h3>
+                    <p className="text-[11px] text-emerald-200/80">
+                      Guarde um snapshot deste rateio para consultas ou reuso futuro
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalSalvarAberto(false)}
+                  className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4 text-xs">
+                {/* Resumo do Orçamento */}
+                <div className="bg-[#e8f0e6] p-3.5 rounded-xl border border-emerald-200 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#1c3220]">{nomeCondominioExibicao}</span>
+                    <span className="bg-emerald-100 text-emerald-900 font-bold px-2 py-0.5 rounded text-[11px]">
+                      {mesReferencia}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span>Total Geral do Demonstrativo:</span>
+                    <span className="font-mono font-black text-emerald-900 text-sm">
+                      {formatarMoeda(totaisDemonstrativo.totalGeral)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {numeroUnidades} unidades cadastradas • Vencimento: {vencimentoBoleto}
+                  </p>
+                </div>
+
+                {/* Título do Orçamento */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Nome / Título deste Orçamento *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={tituloSalvar}
+                    onChange={(e) => setTituloSalvar(e.target.value)}
+                    placeholder="Ex: Condomínio XYZ - Agosto / 2026 (Versão Final)"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-medium text-slate-800 focus:ring-2 focus:ring-[#2d5a32] focus:border-[#2d5a32] outline-none"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Dica: use um nome fácil de identificar para pesquisas posteriores.
+                  </p>
+                </div>
+
+                {/* Anotações / Observações */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Anotações / Observações (Opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={obsSalvar}
+                    onChange={(e) => setObsSalvar(e.target.value)}
+                    placeholder="Ex: Aprovado em assembleia de 05/08 com cota extra para pintura das vagas..."
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-normal text-slate-800 focus:ring-2 focus:ring-[#2d5a32] focus:border-[#2d5a32] outline-none resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalSalvarAberto(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 cursor-pointer text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#2d5a32] hover:bg-[#1e3d22] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Confirmar & Salvar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 2: DETALHES DO ORÇAMENTO SALVO                     */}
+      {/* ======================================================== */}
+      {orcamentoDetalhes && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="bg-[#1c3220] text-white px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-800/60 rounded-xl text-emerald-200">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">{orcamentoDetalhes.titulo}</h3>
+                  <p className="text-[11px] text-emerald-200/80">
+                    {orcamentoDetalhes.nomeCondominio} • Ref: {orcamentoDetalhes.mesReferencia}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOrcamentoDetalhes(null)}
+                className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 space-y-4 overflow-y-auto text-xs">
+              {/* Resumo Card */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#e8f0e6] p-4 rounded-xl border border-emerald-200">
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Total Geral:</span>
+                  <strong className="text-sm font-mono text-[#1c3220] font-black">
+                    {formatarMoeda(orcamentoDetalhes.totalGeral)}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Unidades:</span>
+                  <strong className="text-sm font-mono text-slate-800">{orcamentoDetalhes.numeroUnidades} un</strong>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Vencimento:</span>
+                  <strong className="text-sm font-mono text-slate-800">{orcamentoDetalhes.vencimentoBoleto}</strong>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Data de Salvamento:</span>
+                  <strong className="text-xs text-slate-800">{orcamentoDetalhes.dataSalvamento}</strong>
+                </div>
+              </div>
+
+              {/* Observações */}
+              {orcamentoDetalhes.observacoes && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900">
+                  <span className="font-bold block mb-0.5">Observações:</span>
+                  <p className="italic">{orcamentoDetalhes.observacoes}</p>
+                </div>
+              )}
+
+              {/* Despesas Ordinárias */}
+              <div>
+                <h5 className="font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Despesas Ordinárias ({orcamentoDetalhes.despesasOrdinarias.length})</span>
+                  <span className="font-mono text-[#2d5a32] font-black">
+                    {formatarMoeda(orcamentoDetalhes.totalOrdinarias)}
+                  </span>
+                </h5>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-[11px]">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="p-2 text-left">Descrição</th>
+                        <th className="p-2 text-center">Ref</th>
+                        <th className="p-2 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {orcamentoDetalhes.despesasOrdinarias.map((d) => (
+                        <tr key={d.id} className="hover:bg-slate-50">
+                          <td className="p-2 font-medium text-slate-800">{d.descricao}</td>
+                          <td className="p-2 text-center text-slate-500 font-mono">{d.vencimentoReferencia || '-'}</td>
+                          <td className="p-2 text-right font-mono font-bold text-slate-800">
+                            {formatarMoeda(d.valor)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Despesas Extraordinárias */}
+              {orcamentoDetalhes.despesasExtraordinarias.length > 0 && (
+                <div>
+                  <h5 className="font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Despesas Extraordinárias / Obras ({orcamentoDetalhes.despesasExtraordinarias.length})</span>
+                    <span className="font-mono text-[#2d5a32] font-black">
+                      {formatarMoeda(orcamentoDetalhes.totalExtraordinarias)}
+                    </span>
+                  </h5>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                        <tr>
+                          <th className="p-2 text-left">Descrição</th>
+                          <th className="p-2 text-center">Rateio</th>
+                          <th className="p-2 text-right">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {orcamentoDetalhes.despesasExtraordinarias.map((d) => (
+                          <tr key={d.id} className="hover:bg-slate-50">
+                            <td className="p-2 font-medium text-slate-800">{d.descricao}</td>
+                            <td className="p-2 text-center text-slate-500 font-mono">{d.percentualRateio}%</td>
+                            <td className="p-2 text-right font-mono font-bold text-slate-800">
+                              {formatarMoeda(d.valor)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleExcluirOrcamento(orcamentoDetalhes.id, orcamentoDetalhes.titulo)}
+                className="text-rose-600 hover:text-rose-800 font-bold text-xs flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Excluir</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOrcamentoDetalhes(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 cursor-pointer text-xs"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCarregarOrcamento(orcamentoDetalhes);
+                    setOrcamentoDetalhes(null);
+                  }}
+                  className="px-5 py-2 rounded-xl bg-[#2d5a32] hover:bg-[#1e3d22] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  <span>Carregar este Orçamento no Editor</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

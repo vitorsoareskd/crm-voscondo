@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Fornecedor, Condominio, ServicoFeitoFornecedor } from '../../types';
+import { apiSaveFornecedor, apiUpdateFornecedor, apiDeleteFornecedor } from '../../services/api';
 import { Plus, Star, Users, Search, Filter, Trash2, Building2, Tag, X, Check, Settings, Phone, Mail, FileText, AlertCircle, Sparkles, Pencil } from 'lucide-react';
 
 interface FornecedoresSectionProps {
@@ -183,6 +184,7 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
     };
 
     setFornecedores((prev) => prev.map((item) => (item.id === fornecedorParaEditar.id ? updatedForn : item)));
+    apiUpdateFornecedor(fornecedorParaEditar.id, updatedForn).catch((err) => console.error('Erro ao atualizar fornecedor no SQLite:', err));
     setFornecedorParaEditar(null);
   };
 
@@ -231,6 +233,7 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
     };
 
     setFornecedores([newForn, ...fornecedores]);
+    apiSaveFornecedor(newForn).catch((err) => console.error('Erro ao salvar fornecedor no SQLite:', err));
 
     // Reset Form
     setNome('');
@@ -251,6 +254,7 @@ export const FornecedoresSection: React.FC<FornecedoresSectionProps> = ({
 
   const confirmarExclusaoFornecedor = () => {
     if (fornecedorParaExcluir) {
+      apiDeleteFornecedor(fornecedorParaExcluir.id).catch((err) => console.error('Erro ao excluir fornecedor no SQLite:', err));
       setFornecedores((prev) => prev.filter((f) => f.id !== fornecedorParaExcluir.id));
       setFornecedorParaExcluir(null);
     }

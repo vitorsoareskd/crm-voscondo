@@ -16,7 +16,7 @@ export const CompliancePanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/compliance_laudos')
+    fetch('/api/compliance_laudos')
       .then(res => res.json())
       .then(data => {
         setLaudos(data);

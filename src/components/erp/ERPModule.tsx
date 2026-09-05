@@ -10,6 +10,7 @@ import { RelatoriosSection } from './RelatoriosSection';
 import { CompliancePanel } from './CompliancePanel';
 
 import { ContratosAlertas } from './ContratosAlertas';
+import { apiSaveCondominio, apiDeleteCondominio } from '../../services/api';
 import { Table, Plus, Download, Upload, Search, Edit3, Trash2, Eye, EyeOff, Activity, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 interface ERPModuleProps {
@@ -54,6 +55,7 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
   };
 
   const handleSaveCondo = (condo: Condominio) => {
+    apiSaveCondominio(condo).catch((err) => console.error('Erro ao salvar condomínio no SQLite:', err));
     setCondominios((prev) => {
       const exists = prev.some((c) => c.id === condo.id);
       if (exists) {
@@ -77,6 +79,7 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
 
   const confirmarExclusaoCondo = () => {
     if (condoParaExcluir) {
+      apiDeleteCondominio(condoParaExcluir.id).catch((err) => console.error('Erro ao excluir condomínio no SQLite:', err));
       setCondominios((prev) => prev.filter((c) => c.id !== condoParaExcluir.id));
       setCondoParaExcluir(null);
     }
@@ -101,18 +104,18 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
       'livre caixa do condominio',
       'fundo obras',
       'fundo pintura',
-      'fundo reforma',
+      'fundo reserva',
       'gasto medio do condo',
       'rendimento medio do condo',
       'data ultima alteracao caixa',
       'frase livre caixa',
       'frase fundo obras',
       'frase fundo pintura',
-      'frase fundo reforma',
+      'frase fundo reserva',
       'nota livre caixa',
       'nota fundo obras',
       'nota fundo pintura',
-      'nota fundo reforma'
+      'nota fundo reserva'
     ];
 
     const rows = condominios.map((c) => {
@@ -167,10 +170,10 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
 
   const condominiosFiltrados = condominios.filter((c) => {
     const matchSearch =
-      c.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      c.cnpj.includes(busca) ||
-      c.sindicoResponsavel.toLowerCase().includes(busca.toLowerCase()) ||
-      c.id.toLowerCase().includes(busca.toLowerCase());
+      (c.nome || '').toLowerCase().includes(busca.toLowerCase()) ||
+      (c.cnpj || '').includes(busca) ||
+      (c.sindicoResponsavel || '').toLowerCase().includes(busca.toLowerCase()) ||
+      (c.id || '').toLowerCase().includes(busca.toLowerCase());
     const matchStatus = statusFiltro === 'todos' || c.status === statusFiltro;
     return matchSearch && matchStatus;
   });

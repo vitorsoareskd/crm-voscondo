@@ -18,11 +18,37 @@ export function initDB(): Database.Database {
   // Create tables
   const createTablesSQL = `
     CREATE TABLE IF NOT EXISTS condominios (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT PRIMARY KEY,
       nome TEXT NOT NULL,
       cnpj TEXT,
       status TEXT,
-      data_inicio_contrato DATE
+      data_inicio_contrato DATE,
+      unidades INTEGER DEFAULT 0,
+      endereco TEXT,
+      cidade TEXT,
+      bairro TEXT,
+      rua TEXT,
+      sindico_responsavel TEXT,
+      email_condominio TEXT,
+      numero_condominio TEXT,
+      banco TEXT,
+      agencia_e_conta TEXT,
+      senha_banco TEXT,
+      complexidade TEXT DEFAULT 'Moderado',
+      plano TEXT DEFAULT 'Vos Essencial',
+      fator_ajuste REAL DEFAULT 1.0,
+      mensalidade_calculada REAL DEFAULT 0,
+      horas_estimadas_mes REAL DEFAULT 0,
+      livre_caixa REAL DEFAULT 0,
+      fundo_obras REAL DEFAULT 0,
+      fundo_pintura REAL DEFAULT 0,
+      fundo_reforma REAL DEFAULT 0,
+      gasto_medio_mensal REAL DEFAULT 0,
+      rendimento_medio_mensal REAL DEFAULT 0,
+      saude_score REAL DEFAULT 5,
+      anotacoes TEXT,
+      historico_caixa TEXT,
+      templates_relatorio TEXT
     );
 
     CREATE TABLE IF NOT EXISTS logs_auditoria (
@@ -36,7 +62,7 @@ export function initDB(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS onboarding_checklist (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      condominio_id INTEGER NOT NULL,
+      condominio_id TEXT NOT NULL,
       convencao_recebida BOOLEAN DEFAULT 0,
       atas_recebidas BOOLEAN DEFAULT 0,
       cartao_cnpj_recebido BOOLEAN DEFAULT 0,
@@ -47,7 +73,7 @@ export function initDB(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS contratos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      condominio_id INTEGER NOT NULL,
+      condominio_id TEXT NOT NULL,
       valor_honorarios REAL NOT NULL,
       data_vencimento DATE,
       meses_vigencia INTEGER,
@@ -56,7 +82,7 @@ export function initDB(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS colaboradores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      condominio_id INTEGER NOT NULL,
+      condominio_id TEXT NOT NULL,
       nome_razao TEXT NOT NULL,
       tipo TEXT CHECK(tipo IN ('ORGANICO', 'TERCEIRO')) NOT NULL,
       documento TEXT,
@@ -65,7 +91,7 @@ export function initDB(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS compliance_laudos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      condominio_id INTEGER NOT NULL,
+      condominio_id TEXT NOT NULL,
       tipo_laudo TEXT NOT NULL,
       data_emissao DATE,
       data_vencimento DATE,
@@ -85,7 +111,7 @@ export function initDB(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS esteira_pasta_mensal (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      condominio_id INTEGER NOT NULL,
+      condominio_id TEXT NOT NULL,
       mes_ano TEXT NOT NULL,
       status TEXT CHECK(status IN ('RECEBIMENTO', 'CONCILIACAO', 'FISCAL', 'APROVACAO', 'ENVIADO')) DEFAULT 'RECEBIMENTO',
       FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE CASCADE
@@ -102,56 +128,196 @@ export function initDB(): Database.Database {
       status_pagamento TEXT,
       FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS fornecedores (
+      id TEXT PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cnpj TEXT,
+      condominio_atendido TEXT,
+      condominios_atendidos TEXT,
+      segmento TEXT,
+      avaliacao_servico REAL DEFAULT 3,
+      avaliacao_custo_beneficio REAL DEFAULT 3,
+      telefone TEXT,
+      email TEXT,
+      observacoes TEXT,
+      servicos_feitos TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS inadimplentes (
+      id TEXT PRIMARY KEY,
+      condominio_id TEXT,
+      condominio_nome TEXT,
+      unidade TEXT,
+      morador_nome TEXT,
+      valor_devido REAL DEFAULT 0,
+      meses_atraso INTEGER DEFAULT 0,
+      status_cobranca TEXT DEFAULT 'Amigável',
+      data_ultimo_contato TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS tarefas_gantt (
+      id TEXT PRIMARY KEY,
+      condominio_id TEXT,
+      condominio_nome TEXT,
+      titulo TEXT NOT NULL,
+      categoria TEXT,
+      data_inicio TEXT,
+      data_fim TEXT,
+      progresso INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'Planejado',
+      responsavel TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS tarefas_equipe (
+      id TEXT PRIMARY KEY,
+      condominio_id TEXT,
+      condominio_nome TEXT,
+      titulo TEXT NOT NULL,
+      prioridade TEXT DEFAULT 'Média',
+      concluida BOOLEAN DEFAULT 0,
+      data_limite TEXT,
+      atribuido_para TEXT,
+      google_task_id TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS transacoes_extrato (
+      id TEXT PRIMARY KEY,
+      data TEXT,
+      mes_referencia TEXT,
+      descricao TEXT,
+      valor REAL DEFAULT 0,
+      tipo TEXT CHECK(tipo IN ('entrada', 'saida')),
+      condominio_id TEXT,
+      condominio_nome TEXT,
+      categoria TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS projecao_items (
+      id TEXT PRIMARY KEY,
+      descricao TEXT NOT NULL,
+      valor REAL DEFAULT 0,
+      tipo TEXT CHECK(tipo IN ('ganho', 'despesa')),
+      categoria TEXT,
+      condominio_nome TEXT,
+      probabilidade TEXT DEFAULT 'Estimado',
+      horizonte_tempo TEXT,
+      is_imposto BOOLEAN DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS porquinhos (
+      id TEXT PRIMARY KEY,
+      nome TEXT NOT NULL,
+      descricao TEXT,
+      saldo_atual REAL DEFAULT 0,
+      meta_anual REAL,
+      cor TEXT DEFAULT '#10b981'
+    );
+
+    CREATE TABLE IF NOT EXISTS leads_pre_funil (
+      id TEXT PRIMARY KEY,
+      cnpj TEXT,
+      nome TEXT NOT NULL,
+      cidade TEXT,
+      bairro TEXT,
+      rua TEXT,
+      unidades INTEGER,
+      telefone TEXT,
+      email TEXT,
+      contato TEXT,
+      data_cadastro TEXT,
+      observacoes TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS relatorios_orcamento (
+      id TEXT PRIMARY KEY,
+      titulo TEXT NOT NULL,
+      data_salvamento TEXT,
+      timestamp INTEGER,
+      condominio_id TEXT,
+      nome_condominio TEXT,
+      mes_referencia TEXT,
+      numero_unidades INTEGER,
+      vencimento_boleto TEXT,
+      total_geral REAL,
+      total_ordinarias REAL,
+      total_fundo_reserva REAL,
+      total_extraordinarias REAL,
+      total_fundo_pintura REAL,
+      total_fundo_obras REAL,
+      total_agua REAL,
+      observacoes TEXT,
+      dados_completos TEXT
+    );
   `;
 
+
   try {
+    // Migration: verificar se a tabela condominios antiga precisa ser atualizada para suportar ID TEXT e novos campos
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='condominios'").get();
+    if (tableCheck) {
+      const cols = db.prepare("PRAGMA table_info(condominios)").all() as any[];
+      const hasUnidades = cols.some(c => c.name === 'unidades');
+      const idCol = cols.find(c => c.name === 'id');
+      const idIsText = idCol && idCol.type.toUpperCase().includes('TEXT');
+
+      if (!hasUnidades || !idIsText) {
+        console.log('🔄 Migrando tabela condominios para o novo formato com suporte a IDs de texto e todos os campos...');
+        db.exec(`PRAGMA foreign_keys = OFF;`);
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS condominios_migration_v2 (
+            id TEXT PRIMARY KEY,
+            nome TEXT NOT NULL,
+            cnpj TEXT,
+            status TEXT,
+            data_inicio_contrato DATE,
+            unidades INTEGER DEFAULT 0,
+            endereco TEXT,
+            cidade TEXT,
+            bairro TEXT,
+            rua TEXT,
+            sindico_responsavel TEXT,
+            email_condominio TEXT,
+            numero_condominio TEXT,
+            banco TEXT,
+            agencia_e_conta TEXT,
+            senha_banco TEXT,
+            complexidade TEXT DEFAULT 'Moderado',
+            plano TEXT DEFAULT 'Vos Essencial',
+            fator_ajuste REAL DEFAULT 1.0,
+            mensalidade_calculada REAL DEFAULT 0,
+            horas_estimadas_mes REAL DEFAULT 0,
+            livre_caixa REAL DEFAULT 0,
+            fundo_obras REAL DEFAULT 0,
+            fundo_pintura REAL DEFAULT 0,
+            fundo_reforma REAL DEFAULT 0,
+            gasto_medio_mensal REAL DEFAULT 0,
+            rendimento_medio_mensal REAL DEFAULT 0,
+            saude_score REAL DEFAULT 5,
+            anotacoes TEXT,
+            historico_caixa TEXT,
+            templates_relatorio TEXT
+          );
+        `);
+        // Copiar dados preservados
+        db.exec(`
+          INSERT OR IGNORE INTO condominios_migration_v2 (id, nome, cnpj, status, data_inicio_contrato)
+          SELECT CAST(id AS TEXT), nome, cnpj, status, data_inicio_contrato FROM condominios;
+        `);
+        db.exec(`DROP TABLE condominios;`);
+        db.exec(`ALTER TABLE condominios_migration_v2 RENAME TO condominios;`);
+        db.exec(`PRAGMA foreign_keys = ON;`);
+        console.log('✅ Migração de condominios concluída com sucesso!');
+      }
+    }
+
     db.exec(createTablesSQL);
     console.log('Tabelas inicializadas com sucesso.');
-    seedMockData(db);
   } catch (error) {
     console.error('Erro ao inicializar o banco de dados:', error);
   }
 
   return db;
-}
-
-function seedMockData(database: Database.Database) {
-  const condominios = database.prepare('SELECT COUNT(*) as count FROM condominios').get() as { count: number };
-  if (condominios.count === 0) {
-    console.log('Populando dados iniciais mockados no SQLite...');
-    database.prepare("INSERT INTO condominios (nome, cnpj, status, data_inicio_contrato) VALUES ('Condomínio Alpha', '12.345.678/0001-90', 'Ativo', '2023-01-01')").run();
-    database.prepare("INSERT INTO condominios (nome, cnpj, status, data_inicio_contrato) VALUES ('Condomínio Beta', '98.765.432/0001-10', 'Ativo', '2022-05-15')").run();
-    
-    // Contratos
-    // Um vencendo daqui a 35 dias (aproximadamente 1 mes)
-    const umMesFuturo = new Date();
-    umMesFuturo.setDate(umMesFuturo.getDate() + 35);
-    const dateStr = umMesFuturo.toISOString().split('T')[0];
-
-    // Um vencendo daqui a 65 dias (aproximadamente 2 meses)
-    const doisMesesFuturo = new Date();
-    doisMesesFuturo.setDate(doisMesesFuturo.getDate() + 65);
-    const dateStr2 = doisMesesFuturo.toISOString().split('T')[0];
-
-    database.prepare(`INSERT INTO contratos (condominio_id, valor_honorarios, data_vencimento, meses_vigencia) VALUES (1, 1500.00, '${dateStr}', 12)`).run();
-    database.prepare(`INSERT INTO contratos (condominio_id, valor_honorarios, data_vencimento, meses_vigencia) VALUES (2, 2000.00, '${dateStr2}', 24)`).run();
-
-    // Compliance Laudos
-    // Um vencendo amanhã (alerta vermelho)
-    const amanha = new Date();
-    amanha.setDate(amanha.getDate() + 5);
-    const dateAmanha = amanha.toISOString().split('T')[0];
-    database.prepare(`INSERT INTO compliance_laudos (condominio_id, tipo_laudo, data_emissao, data_vencimento, status) VALUES (1, 'AVCB', '2025-01-01', '${dateAmanha}', 'Válido')`).run();
-    database.prepare("INSERT INTO compliance_laudos (condominio_id, tipo_laudo, data_emissao, data_vencimento, status) VALUES (2, 'SPDA', '2023-01-01', '2028-01-01', 'Válido')").run();
-
-    // Colaboradores e Auditoria
-    database.prepare("INSERT INTO colaboradores (condominio_id, nome_razao, tipo, documento) VALUES (1, 'Limpeza Express LTDA', 'TERCEIRO', '11.111.111/0001-11')").run();
-    database.prepare("INSERT INTO auditoria_terceirizados (colaborador_id, mes_ano, cnd_trabalhista_ok, crf_fgts_ok, comprovantes_pagamento_ok) VALUES (1, 'Agosto/2026', 0, 1, 0)").run();
-
-    // Esteira Pasta Mensal
-    database.prepare("INSERT INTO esteira_pasta_mensal (condominio_id, mes_ano, status) VALUES (1, 'Agosto/2026', 'RECEBIMENTO')").run();
-    database.prepare("INSERT INTO esteira_pasta_mensal (condominio_id, mes_ano, status) VALUES (2, 'Agosto/2026', 'FISCAL')").run();
-  }
 }
 
 export function getDB(): Database.Database {

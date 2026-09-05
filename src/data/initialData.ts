@@ -1,4 +1,4 @@
-import { Condominio, ServicoExtra, ServicoPrestado, Fornecedor, Porquinho, Inadimplente, TarefaGantt, TarefaEquipe, TransacaoExtrato, ProjecaoItem } from '../types';
+import { Condominio, ServicoExtra, ServicoPrestado, Fornecedor, Porquinho, Inadimplente, TarefaGantt, TarefaEquipe, TransacaoExtrato, ProjecaoItem, LeadPreFunil } from '../types';
 
 export const SERVICOS_EXTRAS_INICIAIS: ServicoExtra[] = [
   {
@@ -52,3 +52,5 @@ export const FORNECEDORES_INICIAIS: Fornecedor[] = [];
 export const PORQUINHOS_INICIAIS: Porquinho[] = [];
 export const TRANSACOES_EXTRATO_INICIAIS: TransacaoExtrato[] = [];
 export const PROJECAO_ITEMS_INICIAIS: ProjecaoItem[] = [];
+
+export const LEADS_PRE_FUNIL_INICIAIS: LeadPreFunil[] = [];

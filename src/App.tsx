@@ -1,162 +1,167 @@
 import React, { useState, useEffect } from 'react';
+import { SERVICOS_EXTRAS_INICIAIS } from './data/initialData';
+import { loadFromStorage, saveToStorage, STORAGE_KEYS } from './utils/storage';
 import {
-  CONDOMINIOS_INICIAIS,
-  SERVICOS_EXTRAS_INICIAIS,
-  INADIMPLENTES_INICIAIS,
-  TAREFAS_GANTT_INICIAIS,
-  TAREFAS_EQUIPE_INICIAIS,
-  FORNECEDORES_INICIAIS,
-  PORQUINHOS_INICIAIS,
-  TRANSACOES_EXTRATO_INICIAIS,
-  PROJECAO_ITEMS_INICIAIS
-} from './data/initialData';
-import {
-  loadFromStorage,
-  saveToStorage,
-  STORAGE_KEYS,
-  clearAllAppData,
-  resetAllToInitialData
-} from './utils/storage';
+  apiGetCondominios, apiGetFornecedores, apiGetInadimplentes,
+  apiGetTarefasGantt, apiGetTarefasEquipe, apiGetTransacoes,
+  apiGetProjecaoItems, apiGetPorquinhos,
+} from './services/api';
 import { Condominio, ServicoExtra, Inadimplente, TarefaGantt, TarefaEquipe, Fornecedor, Porquinho, TransacaoExtrato, ProjecaoItem } from './types';
 import { Header } from './components/Header';
 import { CRMModule } from './components/crm/CRMModule';
 import { ERPModule } from './components/erp/ERPModule';
 import { TreasuryModule } from './components/vostreasury/TreasuryModule';
-
 import { LoginScreen } from './components/auth/LoginScreen';
 
 export default function App() {
-  // Authentication State - Always require lock screen on initial app load / page link visit
+  // Authentication — sempre exige tela de login no acesso
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
-  // Clear any old persisted auth token from localStorage to guarantee lock screen on fresh access
   useEffect(() => {
     localStorage.removeItem('vos_authenticated');
+    // Garante flag de dados limpos (sem dados fictícios)
+    localStorage.setItem('vos_data_cleared', 'true');
   }, []);
 
   // Navigation
   const [activeTab, setActiveTab] = useState<'crm' | 'erp' | 'treasury'>('crm');
   const [subTab, setSubTab] = useState<string>('orcamentos');
 
-  // Shared Central State with LocalStorage Persistence & Firestore Sync
+  // ── Estado Central com Cache LocalStorage + Sincronização SQLite ─────────
   const [condominios, setCondominios] = useState<Condominio[]>(() =>
-    loadFromStorage(STORAGE_KEYS.CONDOMINIOS, CONDOMINIOS_INICIAIS)
+    loadFromStorage(STORAGE_KEYS.CONDOMINIOS, [])
   );
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>(() =>
+    loadFromStorage(STORAGE_KEYS.FORNECEDORES, [])
+  );
+  const [inadimplentes, setInadimplentes] = useState<Inadimplente[]>(() =>
+    loadFromStorage(STORAGE_KEYS.INADIMPLENTES, [])
+  );
+  const [tarefasGantt, setTarefasGantt] = useState<TarefaGantt[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TAREFAS_GANTT, [])
+  );
+  const [tarefasEquipe, setTarefasEquipe] = useState<TarefaEquipe[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TAREFAS_EQUIPE, [])
+  );
+  const [transacoesExtrato, setTransacoesExtrato] = useState<TransacaoExtrato[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, [])
+  );
+  const [projecaoItems, setProjecaoItems] = useState<ProjecaoItem[]>(() =>
+    loadFromStorage(STORAGE_KEYS.PROJECAO_ITEMS, [])
+  );
+  const [porquinhos, setPorquinhos] = useState<Porquinho[]>(() =>
+    loadFromStorage(STORAGE_KEYS.PORQUINHOS, [])
+  );
+
+  // Serviços extras e agenda: dados de catálogo e calendário
   const [servicosExtras, setServicosExtras] = useState<ServicoExtra[]>(() =>
     loadFromStorage(STORAGE_KEYS.SERVICOS_EXTRAS, SERVICOS_EXTRAS_INICIAIS)
   );
-  const [inadimplentes, setInadimplentes] = useState<Inadimplente[]>(() =>
-    loadFromStorage(STORAGE_KEYS.INADIMPLENTES, INADIMPLENTES_INICIAIS)
-  );
-  const [tarefasGantt, setTarefasGantt] = useState<TarefaGantt[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TAREFAS_GANTT, TAREFAS_GANTT_INICIAIS)
-  );
-  const [tarefasEquipe, setTarefasEquipe] = useState<TarefaEquipe[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TAREFAS_EQUIPE, TAREFAS_EQUIPE_INICIAIS)
-  );
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>(() =>
-    loadFromStorage(STORAGE_KEYS.FORNECEDORES, FORNECEDORES_INICIAIS)
-  );
-  const [porquinhos, setPorquinhos] = useState<Porquinho[]>(() =>
-    loadFromStorage(STORAGE_KEYS.PORQUINHOS, PORQUINHOS_INICIAIS)
-  );
-  const [transacoesExtrato, setTransacoesExtrato] = useState<TransacaoExtrato[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, TRANSACOES_EXTRATO_INICIAIS)
-  );
-  const [projecaoItems, setProjecaoItems] = useState<ProjecaoItem[]>(() =>
-    loadFromStorage(STORAGE_KEYS.PROJECAO_ITEMS, PROJECAO_ITEMS_INICIAIS)
-  );
-  const [agenda, setAgenda] = useState<any[]>(() => 
+  const [agenda, setAgenda] = useState<any[]>(() =>
     loadFromStorage(STORAGE_KEYS.AGENDA, [])
   );
 
-  // Sync Agenda State
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.AGENDA, agenda);
-  }, [agenda]);
+  // Função auxiliar para atualizar o estado apenas se houver mudança real no banco,
+  // preservando a igualdade referencial e evitando re-renders ou perda de foco em formulários.
+  const updateIfChanged = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, nextData: T[]) => {
+    setter((prev) => {
+      if (prev.length !== nextData.length || JSON.stringify(prev) !== JSON.stringify(nextData)) {
+        return nextData;
+      }
+      return prev;
+    });
+  };
 
-  // Fetch from backend API
-  useEffect(() => {
-    fetch('http://localhost:3001/api/condominios')
-      .then(res => res.json())
-      .then(data => {
-        // Mapeia os dados do SQLite para a interface do frontend, preenchendo o que falta com valores padrao
-        const condominiosApi: Condominio[] = data.map((c: any) => ({
-          id: String(c.id),
-          nome: c.nome,
-          cnpj: c.cnpj || '',
-          status: c.status || 'Interessado',
-          unidades: 0,
-          endereco: 'Endereço não cadastrado',
-          sindicoResponsavel: 'Não informado',
-          emailCondominio: '',
-          numeroCondominio: '',
-          banco: '',
-          agenciaEConta: '',
-          complexidade: 'Moderado',
-          plano: 'Vos Essencial',
-          fatorAjuste: 1,
-          mensalidadeCalculada: 0,
-          livreCaixa: 0,
-          fundoObras: 0,
-          fundoPintura: 0,
-          fundoReforma: 0,
-          gastoMedioMensal: 0,
-          rendimentoMedioMensal: 0
-        }));
-        if (condominiosApi.length > 0) {
-          setCondominios(condominiosApi);
-        }
+  // ── Sincronizador com o Banco SQLite em Tempo Real ─────────────────────────
+  const sincronizarComBanco = React.useCallback(() => {
+    apiGetCondominios()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setCondominios, data as Condominio[]);
       })
-      .catch(err => console.error("Erro ao buscar condominios da API:", err));
+      .catch((err) => console.error('Erro ao sincronizar condomínios do SQLite:', err));
+
+    apiGetFornecedores()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setFornecedores, data as Fornecedor[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar fornecedores do SQLite:', err));
+
+    apiGetInadimplentes()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setInadimplentes, data as Inadimplente[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar inadimplentes do SQLite:', err));
+
+    apiGetTarefasGantt()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setTarefasGantt, data as TarefaGantt[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar tarefas Gantt do SQLite:', err));
+
+    apiGetTarefasEquipe()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setTarefasEquipe, data as TarefaEquipe[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar tarefas equipe do SQLite:', err));
+
+    apiGetTransacoes()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setTransacoesExtrato, data as TransacaoExtrato[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar transações do SQLite:', err));
+
+    apiGetProjecaoItems()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setProjecaoItems, data as ProjecaoItem[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar projeções do SQLite:', err));
+
+    apiGetPorquinhos()
+      .then((data) => {
+        if (Array.isArray(data)) updateIfChanged(setPorquinhos, data as Porquinho[]);
+      })
+      .catch((err) => console.error('Erro ao sincronizar porquinhos do SQLite:', err));
   }, []);
 
-  // Automatically clear test data on first launch ready for production
+  // 1. Executa na montagem inicial
+  // 2. Executa automaticamente a cada 4 segundos (polling contínuo em tempo real)
+  // 3. Executa imediatamente ao alternar de volta para a aba (window focus / visibility change)
   useEffect(() => {
-    const isCleared = localStorage.getItem('vos_data_cleared') === 'true';
-    if (!isCleared) {
-      handleClearData();
-    }
-  }, []);
+    sincronizarComBanco();
 
+    const intervalId = setInterval(sincronizarComBanco, 4000);
 
+    const handleFocus = () => {
+      sincronizarComBanco();
+    };
 
-  // Sync state changes to LocalStorage
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.CONDOMINIOS, condominios);
-  }, [condominios]);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        sincronizarComBanco();
+      }
+    };
 
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, servicosExtras);
-  }, [servicosExtras]);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
 
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.INADIMPLENTES, inadimplentes);
-  }, [inadimplentes]);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [sincronizarComBanco]);
 
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.TAREFAS_GANTT, tarefasGantt);
-  }, [tarefasGantt]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.TAREFAS_EQUIPE, tarefasEquipe);
-  }, [tarefasEquipe]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.FORNECEDORES, fornecedores);
-  }, [fornecedores]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.PORQUINHOS, porquinhos);
-  }, [porquinhos]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, transacoesExtrato);
-  }, [transacoesExtrato]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, projecaoItems);
-  }, [projecaoItems]);
+  // Sincronizar alterações no localStorage como cache rápido
+  useEffect(() => { saveToStorage(STORAGE_KEYS.CONDOMINIOS, condominios); }, [condominios]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.FORNECEDORES, fornecedores); }, [fornecedores]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.INADIMPLENTES, inadimplentes); }, [inadimplentes]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.TAREFAS_GANTT, tarefasGantt); }, [tarefasGantt]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.TAREFAS_EQUIPE, tarefasEquipe); }, [tarefasEquipe]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, transacoesExtrato); }, [transacoesExtrato]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, projecaoItems); }, [projecaoItems]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.PORQUINHOS, porquinhos); }, [porquinhos]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.AGENDA, agenda); }, [agenda]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, servicosExtras); }, [servicosExtras]);
 
   const handleLogout = () => {
     localStorage.removeItem('vos_authenticated');
@@ -165,30 +170,33 @@ export default function App() {
     setIsAuthenticated(false);
   };
 
+  // Limpar dados: recarrega do banco após limpar estado local
   const handleClearData = async () => {
-    clearAllAppData();
     setCondominios([]);
-    setServicosExtras([]);
+    setFornecedores([]);
     setInadimplentes([]);
     setTarefasGantt([]);
     setTarefasEquipe([]);
-    setFornecedores([]);
     setPorquinhos([]);
     setTransacoesExtrato([]);
     setProjecaoItems([]);
+    setServicosExtras([]);
+    setAgenda([]);
+    localStorage.setItem(STORAGE_KEYS.AGENDA, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.SERVICOS_EXTRAS, JSON.stringify([]));
+    // Recarregar condomínios do banco (dados reais)
+    try {
+      const data = await apiGetCondominios();
+      setCondominios(data as Condominio[]);
+    } catch (err) {
+      console.error('Erro ao recarregar condominios:', err);
+    }
   };
 
+  // Restaurar apenas serviços extras padrão (não tem dados fictícios de condomínios)
   const handleResetData = async () => {
-    resetAllToInitialData();
-    setCondominios(CONDOMINIOS_INICIAIS);
     setServicosExtras(SERVICOS_EXTRAS_INICIAIS);
-    setInadimplentes(INADIMPLENTES_INICIAIS);
-    setTarefasGantt(TAREFAS_GANTT_INICIAIS);
-    setTarefasEquipe(TAREFAS_EQUIPE_INICIAIS);
-    setFornecedores(FORNECEDORES_INICIAIS);
-    setPorquinhos(PORQUINHOS_INICIAIS);
-    setTransacoesExtrato(TRANSACOES_EXTRATO_INICIAIS);
-    setProjecaoItems(PROJECAO_ITEMS_INICIAIS);
+    saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, SERVICOS_EXTRAS_INICIAIS);
   };
 
   // Render Lock Screen if not authenticated
@@ -255,7 +263,6 @@ export default function App() {
             subTab={subTab}
           />
         )}
-
 
       </main>
 

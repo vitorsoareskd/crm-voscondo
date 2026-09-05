@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TarefaEquipe, Condominio, AgendaEvent, TipoRecorrencia, GoogleConfig } from '../../types';
+import { apiSaveTarefaEquipe, apiUpdateTarefaEquipe, apiDeleteTarefaEquipe } from '../../services/api';
 import { 
   CheckSquare, 
   Plus, 
@@ -147,6 +148,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ tarefas, setTarefas,
     };
 
     setTarefas([nova, ...tarefas]);
+    apiSaveTarefaEquipe(nova).catch((err) => console.error('Erro ao salvar tarefa no SQLite:', err));
     setTitulo('');
   };
 
@@ -158,6 +160,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ tarefas, setTarefas,
 
     setTarefas((prev) =>
       prev.map((t) => (t.id === id ? { ...t, concluida: novoStatus } : t))
+    );
+    apiUpdateTarefaEquipe(id, { ...task, concluida: novoStatus }).catch((err) =>
+      console.error('Erro ao atualizar tarefa no SQLite:', err)
     );
 
     // Sync status change to Google Tasks in background if connected
@@ -179,6 +184,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ tarefas, setTarefas,
         console.warn('Falha ao excluir do Google Tasks:', err);
       }
     }
+    apiDeleteTarefaEquipe(id).catch((err) => console.error('Erro ao excluir tarefa do SQLite:', err));
     setTarefas((prev) => prev.filter((t) => t.id !== id));
   };
 

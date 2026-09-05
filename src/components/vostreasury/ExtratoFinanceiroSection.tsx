@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TransacaoExtrato, Condominio } from '../../types';
+import { apiSaveTransacao, apiDeleteTransacao } from '../../services/api';
 import { formatarMoeda } from '../../utils/pricingEngine';
 import {
   TrendingUp,
@@ -26,12 +27,14 @@ interface ExtratoFinanceiroSectionProps {
   transacoes: TransacaoExtrato[];
   setTransacoes: React.Dispatch<React.SetStateAction<TransacaoExtrato[]>>;
   condominios: Condominio[];
+  onAdicionarNfe?: (novaNfe: any) => void;
 }
 
 export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> = ({
   transacoes,
   setTransacoes,
-  condominios = []
+  condominios = [],
+  onAdicionarNfe
 }) => {
   // Reference Month Filter
   const [mesReferencia, setMesReferencia] = useState<string>('Julho/2026');
@@ -46,7 +49,7 @@ export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> =
   const [novaDescricao, setNovaDescricao] = useState<string>('');
   const [novoValor, setNovoValor] = useState<string>('');
   const [novoTipo, setNovoTipo] = useState<'entrada' | 'saida'>('entrada');
-  const [novoCondominio, setNovoCondominio] = useState<string>('Geral VOS (Administradora)');
+  const [novoCondominio, setNovoCondominio] = useState<string>('VOS CONDO');
   const [novaCategoria, setNovaCategoria] = useState<string>('Honorários de Gestão');
 
   // Category Management State
@@ -131,9 +134,11 @@ export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> =
 
   // List of Condominiums / Origins / Destinations with Segmentation
   const listaOrigensDestinos: { nome: string; tipo: 'entrada' | 'saida' | 'ambos' }[] = [
+    { nome: 'VOS CONDO', tipo: 'ambos' },
     { nome: 'Geral VOS (Administradora)', tipo: 'saida' },
     { nome: 'Geral VOS (Saques)', tipo: 'saida' },
     ...Array.from(new Set(condominios.map((c) => c.nome)))
+      .filter((n) => n !== 'VOS CONDO')
       .filter(Boolean)
       .map((nome) => ({ nome, tipo: 'entrada' as const }))
   ];
@@ -146,8 +151,9 @@ export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> =
     if (!novaDescricao || !novoValor) return;
 
     const valNum = parseFloat(novoValor) || 0;
+    const newTransId = `EXT-${Math.floor(100 + Math.random() * 900)}`;
     const newTrans: TransacaoExtrato = {
-      id: `EXT-${Math.floor(100 + Math.random() * 900)}`,
+      id: newTransId,
       data: novaData,
       mesReferencia: novoMesRef,
       descricao: novaDescricao.trim(),
@@ -158,6 +164,46 @@ export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> =
     };
 
     setTransacoes([newTrans, ...transacoes]);
+    apiSaveTransacao(newTrans).catch((err) => console.error('Erro ao salvar transação no SQLite:', err));
+
+    // Toda entrada criada no extrato gera um Registro de NFe automaticamente com status Pendente
+    if (novoTipo === 'entrada') {
+      const condObj = condominios.find((c) => c.nome === novoCondominio);
+      const plano = condObj?.plano || 'Vos Essencial';
+
+      const novaNfe = {
+        id: `nf_ext_${newTransId}_${Date.now()}`,
+        numero: `2026/00${Math.floor(50 + Math.random() * 50)}`,
+        condominioNome: novoCondominio,
+        cnpjTomador: condObj?.cnpj || (novoCondominio === 'VOS CONDO' ? '45.890.123/0001-99' : '00.000.000/0001-00'),
+        enderecoTomador: condObj?.endereco || (novoCondominio === 'VOS CONDO' ? 'Curitiba - PR' : 'Endereço Comercial do Condomínio'),
+        emailTomador: condObj?.emailCondominio || 'contato@voscondo.com.br',
+        modeloEmpresa: 'MEI' as const,
+        codigoTributacao: '17.02',
+        descricaoServico: novaDescricao.trim() || `Prestação de serviços de apoio administrativo para ${novoCondominio}, ref. ao mês de ${novoMesRef}.`,
+        planoOuServicoPreset: plano,
+        dataEmissao: novaData,
+        valorTotal: valNum,
+        aliquotaIss: 0,
+        valorIss: 0,
+        status: 'Pendente' as const,
+        codigoVerificacao: `VOS-${Math.floor(1000 + Math.random() * 9000)}-MEI`,
+        extratoTransacaoId: newTransId
+      };
+
+      if (onAdicionarNfe) {
+        onAdicionarNfe(novaNfe);
+      }
+
+      try {
+        const saved = localStorage.getItem('vos_treasury_nfes');
+        const listaAtual = saved ? JSON.parse(saved) : [];
+        novaNfe.numero = `2026/00${(listaAtual.length + 51).toString().padStart(2, '0')}`;
+        localStorage.setItem('vos_treasury_nfes', JSON.stringify([novaNfe, ...listaAtual]));
+      } catch (err) {
+        console.error('Erro ao salvar NFe automática:', err);
+      }
+    }
 
     // Reset Form
     setNovaDescricao('');
@@ -175,6 +221,7 @@ export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> =
 
   const confirmarExclusaoTransacao = () => {
     if (itemParaExcluir) {
+      apiDeleteTransacao(itemParaExcluir.id).catch((err) => console.error('Erro ao excluir transação no SQLite:', err));
       setTransacoes((prev) => prev.filter((t) => t.id !== itemParaExcluir.id));
       setItemParaExcluir(null);
     }
@@ -796,21 +843,21 @@ export const ExtratoFinanceiroSection: React.FC<ExtratoFinanceiroSectionProps> =
                   >
                     {novoTipo === 'saida' ? (
                       <>
+                        <option value="VOS CONDO">VOS CONDO</option>
                         <option value="Geral VOS (Administradora)">Geral VOS (Administradora)</option>
                         <option value="Geral VOS (Saques)">Geral VOS (Saques)</option>
                       </>
                     ) : (
                       <>
+                        <option value="VOS CONDO">VOS CONDO</option>
                         {Array.from(new Set(condominios.map((c) => c.nome)))
+                          .filter((n) => n !== 'VOS CONDO')
                           .filter(Boolean)
                           .map((nome) => (
                             <option key={nome} value={nome}>
                               {nome}
                             </option>
                           ))}
-                        {Array.from(new Set(condominios.map((c) => c.nome))).filter(Boolean).length === 0 && (
-                          <option value="">Nenhum condomínio cadastrado em 2.1 Perfil do Cliente</option>
-                        )}
                       </>
                     )}
                   </select>

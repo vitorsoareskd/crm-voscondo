@@ -44,6 +44,9 @@ export interface Condominio {
   cnpj: string;
   unidades: number;
   endereco: string;
+  cidade?: string;
+  bairro?: string;
+  rua?: string;
   sindicoResponsavel: string;
   emailCondominio: string;
   numeroCondominio: string; // Telefone
@@ -83,6 +86,21 @@ export interface Condominio {
   anotacoes?: string; // Anotações gerais e customizáveis do condomínio
   historicoCaixa?: RegistroHistoricoCaixa[]; // Mantendo os 5 últimos registros para conferência
   templatesRelatorio?: TemplateRelatorio;
+}
+
+export interface LeadPreFunil {
+  id: string;
+  cnpj: string;
+  nome: string;
+  cidade: string;
+  bairro: string;
+  rua: string;
+  unidades?: number;
+  telefone?: string;
+  email?: string;
+  contato?: string;
+  dataCadastro?: string;
+  observacoes?: string;
 }
 
 export interface ServicoExtra {

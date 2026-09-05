@@ -673,7 +673,7 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                 <div className="flex items-center justify-between border-b pb-1.5">
                   <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                    <span>Fundo Reforma</span>
+                    <span>Fundo Reserva</span>
                   </span>
                 </div>
                 <div>
@@ -692,13 +692,13 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                     <MessageSquare className="w-3 h-3 text-slate-400" />
-                    <span>Frase / Observação do Fundo Reforma</span>
+                    <span>Frase / Observação do Fundo Reserva</span>
                   </label>
                   <input
                     type="text"
                     value={fraseFundoReforma}
                     onChange={(e) => setFraseFundoReforma(e.target.value)}
-                    placeholder="Ex: Fundo para grandes intervenções prediais"
+                    placeholder="Ex: Fundo para despesas imprevistas e reserva legal"
                     className="w-full p-1.5 border rounded-lg text-xs bg-slate-50 focus:bg-white"
                   />
                 </div>
@@ -737,7 +737,7 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
                         <th className="p-2 font-mono">Livre Caixa</th>
                         <th className="p-2 font-mono">Fundo Obra</th>
                         <th className="p-2 font-mono">Fundo Pintura</th>
-                        <th className="p-2 font-mono">Fundo Reforma</th>
+                        <th className="p-2 font-mono">Fundo Reserva</th>
                         <th className="p-2 font-mono text-emerald-800">Total Reservas</th>
                         <th className="p-2 text-center">Nota</th>
                         <th className="p-2 text-right">Ação</th>

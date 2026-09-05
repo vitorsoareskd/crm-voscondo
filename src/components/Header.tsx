@@ -76,6 +76,15 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
+          {/* Live Sync Status Indicator */}
+          <div 
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 font-medium shadow-xs"
+            title="Conexão em Tempo Real com SQLite: atualizações sincronizadas automaticamente"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span className="hidden sm:inline text-[11px] font-semibold text-emerald-200">Auto-Sync Ativo</span>
+          </div>
+
           {/* Data Actions Menu Button */}
           <button
             onClick={() => setShowDataModal(true)}

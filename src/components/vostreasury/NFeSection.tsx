@@ -25,7 +25,8 @@ import {
   Tag,
   Building,
   Check,
-  Lock
+  Lock,
+  Calendar
 } from 'lucide-react';
 import { Condominio, TransacaoExtrato } from '../../types';
 import { formatarMoeda } from '../../utils/pricingEngine';
@@ -135,15 +136,15 @@ const INITIAL_NFES: NFeItem[] = [
     cnpjTomador: '12.345.678/0001-90',
     enderecoTomador: 'Av. das Acácias, 1000 - Centro, Curitiba - PR, 80000-000',
     emailTomador: 'contato@solardasacacias.com.br',
-    modeloEmpresa: 'LTDA',
+    modeloEmpresa: 'MEI',
     codigoTributacao: '17.02',
     descricaoServico:
       'Prestação de serviços de apoio administrativo (Plano Essencial), contemplando processamento de dados para emissão de boletos, organização de cadastros, controle de rotinas de expediente e organização documental para o Condomínio Solar das Acácias, ref. ao mês de Julho/2026.',
     planoOuServicoPreset: 'Vos Essencial',
     dataEmissao: '2026-07-05',
     valorTotal: 4500.0,
-    aliquotaIss: 5,
-    valorIss: 225.0,
+    aliquotaIss: 0,
+    valorIss: 0,
     status: 'Emitida',
     codigoVerificacao: 'VOS-9821-A'
   },
@@ -154,15 +155,15 @@ const INITIAL_NFES: NFeItem[] = [
     cnpjTomador: '98.765.432/0001-10',
     enderecoTomador: 'Rua Bispo Dom José, 2050 - Batel, Curitiba - PR, 80440-000',
     emailTomador: 'sindico@batelplaza.com.br',
-    modeloEmpresa: 'LTDA ME',
+    modeloEmpresa: 'MEI',
     codigoTributacao: '17.02',
     descricaoServico:
       'Prestação de serviços avançados de apoio administrativo (Plano 360), contemplando secretariado em reuniões, redação e encaminhamento de atas, organização de pautas, e apoio direto nas rotinas financeiras e documentais do Condomínio Residencial Batel Plaza, ref. ao mês de Julho/2026.',
     planoOuServicoPreset: 'Vos 360',
     dataEmissao: '2026-07-10',
     valorTotal: 5800.0,
-    aliquotaIss: 5,
-    valorIss: 290.0,
+    aliquotaIss: 0,
+    valorIss: 0,
     status: 'Emitida',
     codigoVerificacao: 'VOS-7712-B'
   },
@@ -173,15 +174,15 @@ const INITIAL_NFES: NFeItem[] = [
     cnpjTomador: '45.112.890/0001-33',
     enderecoTomador: 'Rua Marechal Deodoro, 500 - Centro, Curitiba - PR',
     emailTomador: 'adm@horizontower.com.br',
-    modeloEmpresa: 'LTDA',
+    modeloEmpresa: 'MEI',
     codigoTributacao: '17.02',
     descricaoServico:
       'Serviços extraordinários de apoio administrativo e compilação de dados referentes a Vistoria e Acompanhamento de Obras para o Condomínio Edifício Horizon Tower, ref. ao mês de Julho/2026.',
     planoOuServicoPreset: 'Hora Técnica Engenharia / Visitas',
     dataEmissao: '2026-07-15',
     valorTotal: 3200.0,
-    aliquotaIss: 5,
-    valorIss: 160.0,
+    aliquotaIss: 0,
+    valorIss: 0,
     status: 'Pendente'
   },
   {
@@ -198,8 +199,8 @@ const INITIAL_NFES: NFeItem[] = [
     planoOuServicoPreset: 'Vos Pulse',
     dataEmissao: '2026-07-20',
     valorTotal: 2900.0,
-    aliquotaIss: 5,
-    valorIss: 145.0,
+    aliquotaIss: 0,
+    valorIss: 0,
     status: 'Emitida',
     codigoVerificacao: 'VOS-3301-C'
   }
@@ -208,14 +209,18 @@ const INITIAL_NFES: NFeItem[] = [
 interface NFeSectionProps {
   condominios?: Condominio[];
   transacoes?: TransacaoExtrato[];
+  nfes?: NFeItem[];
+  setNfes?: React.Dispatch<React.SetStateAction<NFeItem[]>>;
 }
 
 export const NFeSection: React.FC<NFeSectionProps> = ({
   condominios = [],
-  transacoes = []
+  transacoes = [],
+  nfes: propNfes,
+  setNfes: propSetNfes
 }) => {
-  // State for NFes list persisted in localStorage
-  const [nfes, setNfes] = useState<NFeItem[]>(() => {
+  // State for NFes list persisted in localStorage (com suporte a prop e fallback local)
+  const [internalNfes, setInternalNfes] = useState<NFeItem[]>(() => {
     try {
       const saved = localStorage.getItem('vos_treasury_nfes');
       return saved ? JSON.parse(saved) : INITIAL_NFES;
@@ -223,6 +228,9 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
       return INITIAL_NFES;
     }
   });
+
+  const nfes = propNfes ?? internalNfes;
+  const setNfes = propSetNfes ?? setInternalNfes;
 
   // Global Filters
   const [anoFiltro, setAnoFiltro] = useState<string>('2026');
@@ -237,19 +245,19 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
   // Modal State (Preview / Espelho)
   const [selectedNFePreview, setSelectedNFePreview] = useState<NFeItem | null>(null);
 
-  // Form Fields State
+  // Form Fields State (MEI por padrão com ISS Retido zerado)
   const [formNumero, setFormNumero] = useState('');
   const [formCondominio, setFormCondominio] = useState('');
   const [formCnpj, setFormCnpj] = useState('');
   const [formEndereco, setFormEndereco] = useState('');
   const [formEmail, setFormEmail] = useState('');
-  const [formModeloEmpresa, setFormModeloEmpresa] = useState<ModeloEmpresa>('LTDA');
+  const [formModeloEmpresa, setFormModeloEmpresa] = useState<ModeloEmpresa>('MEI');
   const [formCodigoTributacao, setFormCodigoTributacao] = useState('17.02');
   const [formServico, setFormServico] = useState('');
   const [formValor, setFormValor] = useState('');
-  const [formIss, setFormIss] = useState('5');
+  const [formIss, setFormIss] = useState('0');
   const [formDataEmissao, setFormDataEmissao] = useState(new Date().toISOString().split('T')[0]);
-  const [formStatus, setFormStatus] = useState<'Emitida' | 'Pendente' | 'Cancelada'>('Emitida');
+  const [formStatus, setFormStatus] = useState<'Emitida' | 'Pendente' | 'Cancelada'>('Pendente');
   const [formExtratoVinculo, setFormExtratoVinculo] = useState<string>('');
 
   // Save to localStorage
@@ -275,13 +283,13 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
     setFormCnpj('');
     setFormEndereco('');
     setFormEmail('');
-    setFormModeloEmpresa('LTDA');
+    setFormModeloEmpresa('MEI');
     setFormCodigoTributacao('17.02');
     setFormServico('');
     setFormValor('');
-    setFormIss('5');
+    setFormIss('0');
     setFormDataEmissao(new Date().toISOString().split('T')[0]);
-    setFormStatus('Emitida');
+    setFormStatus('Pendente');
     setFormExtratoVinculo('');
     setShowModal(true);
   };
@@ -294,20 +302,45 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
     setFormCnpj(item.cnpjTomador || '');
     setFormEndereco(item.enderecoTomador || '');
     setFormEmail(item.emailTomador || '');
-    setFormModeloEmpresa(item.modeloEmpresa || 'LTDA');
+    setFormModeloEmpresa(item.modeloEmpresa || 'MEI');
     setFormCodigoTributacao(item.codigoTributacao || '17.02');
     setFormServico(item.descricaoServico);
     setFormValor(item.valorTotal.toString());
-    setFormIss(item.aliquotaIss ? item.aliquotaIss.toString() : '5');
+    setFormIss(item.modeloEmpresa === 'MEI' ? '0' : (item.aliquotaIss ? item.aliquotaIss.toString() : '0'));
     setFormDataEmissao(item.dataEmissao);
     setFormStatus(item.status);
     setFormExtratoVinculo(item.extratoTransacaoId || '');
     setShowModal(true);
   };
 
+  // Alteração Rápida de Status diretamente na tabela ou painel
+  const handleAlterarStatusNFe = (id: string, novoStatus: 'Emitida' | 'Pendente' | 'Cancelada') => {
+    setNfes((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const codVerif =
+            novoStatus === 'Emitida' && !item.codigoVerificacao
+              ? `VOS-${Math.floor(1000 + Math.random() * 9000)}-MEI`
+              : item.codigoVerificacao;
+          return { ...item, status: novoStatus, codigoVerificacao: codVerif };
+        }
+        return item;
+      })
+    );
+  };
+
   // Auto-fill Condominium details
   const handleSelectCondominio = (nome: string) => {
     setFormCondominio(nome);
+    if (nome === 'VOS CONDO') {
+      setFormCnpj('45.890.123/0001-99');
+      setFormEndereco('Curitiba - PR');
+      setFormEmail('contato@voscondo.com.br');
+      if (!formServico) {
+        setFormServico('Prestação de serviços de apoio administrativo e gestão condominial');
+      }
+      return;
+    }
     const cond = condominios.find((c) => c.nome === nome);
     if (cond) {
       setFormCnpj(cond.cnpj || '00.000.000/0001-00');
@@ -359,7 +392,8 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
     }
 
     const val = parseFloat(formValor);
-    const aliq = parseFloat(formIss) || 0;
+    // ISS Retido / Tributos zerado para MEI (Microempreendedor Individual)
+    const aliq = formModeloEmpresa === 'MEI' ? 0 : (parseFloat(formIss) || 0);
     const valIss = (val * aliq) / 100;
 
     if (editingNFe) {
@@ -370,7 +404,7 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
               ...item,
               numero: formNumero,
               condominioNome: formCondominio,
-              cnpjTomador: formCnpj || '00.000.000/0001-00',
+              cnpjTomador: formCnpj || (formCondominio === 'VOS CONDO' ? '45.890.123/0001-99' : '00.000.000/0001-00'),
               enderecoTomador: formEndereco,
               emailTomador: formEmail,
               modeloEmpresa: formModeloEmpresa,
@@ -392,7 +426,7 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
         id: `nf_${Date.now()}`,
         numero: formNumero || `2026/00${(nfes.length + 50).toString().padStart(2, '0')}`,
         condominioNome: formCondominio,
-        cnpjTomador: formCnpj || '00.000.000/0001-00',
+        cnpjTomador: formCnpj || (formCondominio === 'VOS CONDO' ? '45.890.123/0001-99' : '00.000.000/0001-00'),
         enderecoTomador: formEndereco || 'Endereço Comercial do Condomínio',
         emailTomador: formEmail || 'contato@condominio.com.br',
         modeloEmpresa: formModeloEmpresa,
@@ -403,7 +437,7 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
         aliquotaIss: aliq,
         valorIss: valIss,
         status: formStatus,
-        codigoVerificacao: `VOS-${Math.floor(1000 + Math.random() * 9000)}-NF`,
+        codigoVerificacao: `VOS-${Math.floor(1000 + Math.random() * 9000)}-MEI`,
         extratoTransacaoId: formExtratoVinculo
       };
       setNfes([novaNFe, ...nfes]);
@@ -420,7 +454,7 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
 
       // Check year
       if (anoFiltro !== 'Todos') {
-        const trAno = t.data ? t.data.substring(0, 4) : '2026';
+        const trAno = t.data ? t.data.substring(0, 4) : (t.mesReferencia?.split('/')[1] || '2026');
         if (trAno !== anoFiltro) return false;
       }
 
@@ -467,17 +501,18 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
         const presetObj = PRESETS_PLANOS.find((p) => p.key === plano) || PRESETS_PLANOS[0];
         const descServico = formatPresetText(presetObj.template, tr.condominioNome);
 
-        const aliq = 5;
-        const valIss = (tr.valor * aliq) / 100;
+        // ISS Retido zerado pois é MEI
+        const aliq = 0;
+        const valIss = 0;
 
         const novaNfe: NFeItem = {
           id: `nf_ext_${tr.id}_${Date.now()}`,
           numero: `2026/00${(novasNfes.length + 51 + index).toString().padStart(2, '0')}`,
           condominioNome: tr.condominioNome,
-          cnpjTomador: condObj?.cnpj || '00.000.000/0001-00',
-          enderecoTomador: condObj?.endereco || 'Endereço Comercial do Condomínio',
-          emailTomador: condObj?.emailCondominio || 'contato@condominio.com.br',
-          modeloEmpresa: 'LTDA',
+          cnpjTomador: condObj?.cnpj || (tr.condominioNome === 'VOS CONDO' ? '45.890.123/0001-99' : '00.000.000/0001-00'),
+          enderecoTomador: condObj?.endereco || (tr.condominioNome === 'VOS CONDO' ? 'Curitiba - PR' : 'Endereço Comercial do Condomínio'),
+          emailTomador: condObj?.emailCondominio || 'contato@voscondo.com.br',
+          modeloEmpresa: 'MEI',
           codigoTributacao: '17.02',
           descricaoServico: tr.descricao || descServico,
           planoOuServicoPreset: plano,
@@ -485,8 +520,8 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
           valorTotal: tr.valor,
           aliquotaIss: aliq,
           valorIss: valIss,
-          status: 'Emitida',
-          codigoVerificacao: `VOS-${Math.floor(1000 + Math.random() * 9000)}-EXT`,
+          status: 'Pendente',
+          codigoVerificacao: `VOS-${Math.floor(1000 + Math.random() * 9000)}-MEI`,
           extratoTransacaoId: tr.id
         };
 
@@ -611,81 +646,73 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
         </div>
       </div>
 
-      {/* Control Bar: Dual Filter Row (Ano & Mês References) */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3">
-        {/* Row 1: Year Filter & Search */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      {/* Control Bar: Menus Dropdown para Ano de Referência e Filtrar o Mês */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Menu Dropdown: Ano de Referência */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5 text-[#2d5a32]" /> Referência Ano:
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-[#2d5a32]" />
+              <span>Ano de Referência:</span>
             </span>
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button
-                onClick={() => setAnoFiltro('Todos')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  anoFiltro === 'Todos'
-                    ? 'bg-white text-[#1c3220] shadow-xs border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Todos os Anos
-              </button>
+            <select
+              value={anoFiltro}
+              onChange={(e) => setAnoFiltro(e.target.value)}
+              className="bg-slate-50 hover:bg-white text-slate-800 font-bold text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#2d5a32] focus:border-[#2d5a32] outline-none cursor-pointer shadow-2xs transition-all"
+            >
+              <option value="Todos">Todos os Anos</option>
               {ANOS_OPCOES.map((ano) => (
-                <button
-                  key={ano}
-                  onClick={() => setAnoFiltro(ano)}
-                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                    anoFiltro === ano
-                      ? 'bg-[#1c3220] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
+                <option key={ano} value={ano}>
                   {ano}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-            <input
-              type="text"
-              placeholder="Buscar por NFe, condomínio, CNPJ ou regime..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#2d5a32] outline-hidden font-medium text-xs w-64 bg-slate-50 focus:bg-white"
-            />
+          {/* Menu Dropdown: Filtrar o Mês */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#2d5a32]" />
+              <span>Filtrar o Mês:</span>
+            </span>
+            <select
+              value={mesFiltro}
+              onChange={(e) => setMesFiltro(e.target.value)}
+              className="bg-slate-50 hover:bg-white text-slate-800 font-bold text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#2d5a32] focus:border-[#2d5a32] outline-none cursor-pointer shadow-2xs transition-all"
+            >
+              <option value="Todos">Todos os Meses</option>
+              {MESES_NOMES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {/* Botão para limpar filtros caso algum esteja ativo */}
+          {(anoFiltro !== 'Todos' || mesFiltro !== 'Todos') && (
+            <button
+              type="button"
+              onClick={() => {
+                setAnoFiltro('Todos');
+                setMesFiltro('Todos');
+              }}
+              className="text-xs text-emerald-800 hover:text-emerald-950 font-bold underline cursor-pointer"
+            >
+              Limpar Filtros
+            </button>
+          )}
         </div>
 
-        {/* Row 2: Month Reference Selection Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap mr-1">
-            Referência Mês:
-          </span>
-          <button
-            onClick={() => setMesFiltro('Todos')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-              mesFiltro === 'Todos'
-                ? 'bg-[#2d5a32] text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Todos os Meses
-          </button>
-          {MESES_NOMES.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMesFiltro(m)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                mesFiltro === m
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/60'
-              }`}
-            >
-              {m}
-            </button>
-          ))}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Buscar por NFe, condomínio, CNPJ ou regime..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-8 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#2d5a32] outline-none font-medium text-xs w-64 bg-slate-50 focus:bg-white"
+          />
         </div>
       </div>
 
@@ -709,34 +736,34 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
         </div>
 
         {/* Quantidade Pendente */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:border-blue-500/50 transition-all">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:border-amber-500/50 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold text-slate-600">NFes em Transmissão</span>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+            <span className="text-xs font-bold text-slate-600">NFes Pendentes</span>
+            <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-black text-blue-700 tracking-tight font-mono">
+          <div className="text-xl font-black text-amber-800 tracking-tight font-mono">
             {qtdPendentes}
           </div>
           <div className="text-[11px] font-medium text-slate-500 mt-1">
-            {qtdPendentes > 0 ? 'Aguardando lote na Prefeitura' : 'Todas NFes transmitidas'}
+            {qtdPendentes > 0 ? `${qtdPendentes} aguardando emissão ou alteração` : 'Nenhuma nota pendente'}
           </div>
         </div>
 
-        {/* Total ISS Estimado */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:border-amber-500/50 transition-all">
+        {/* Total ISS Estimado / Retido */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:border-emerald-500/50 transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold text-slate-600">ISS Retido / Tributos</span>
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
               <FileCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-black text-amber-700 tracking-tight font-mono">
-            {formatarMoeda(totalIssRecolhido)}
+          <div className="text-xl font-black text-emerald-800 tracking-tight font-mono">
+            {totalIssRecolhido > 0 ? formatarMoeda(totalIssRecolhido) : 'R$ 0,00'}
           </div>
           <div className="text-[11px] font-medium text-slate-500 mt-1">
-            Código 17.02 (Alíquota 5%)
+            Regime MEI (Tributos zerados na NFe / DAS-SIMEI)
           </div>
         </div>
 
@@ -859,32 +886,43 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                       {formatarMoeda(item.valorTotal)}
                     </td>
 
-                    {/* Status */}
-                    <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                      {item.status === 'Emitida' && (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                          <span>Emitida</span>
-                        </span>
-                      )}
-                      {item.status === 'Pendente' && (
-                        <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 border border-blue-200">
-                          <Clock className="w-3 h-3 text-blue-700" />
-                          <span>Transmissão</span>
-                        </span>
-                      )}
-                      {item.status === 'Cancelada' && (
-                        <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 border border-rose-200">
-                          <XCircle className="w-3 h-3 text-rose-600" />
-                          <span>Cancelada</span>
-                        </span>
-                      )}
+                    {/* Status interativo / opção de alterar diretamente */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <select
+                        value={item.status}
+                        onChange={(e) => handleAlterarStatusNFe(item.id, e.target.value as 'Emitida' | 'Pendente' | 'Cancelada')}
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer outline-none transition-all shadow-2xs ${
+                          item.status === 'Emitida'
+                            ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                            : item.status === 'Pendente'
+                            ? 'bg-amber-100 text-amber-900 border-amber-300'
+                            : 'bg-rose-100 text-rose-900 border-rose-300'
+                        }`}
+                        title="Clique para alterar o status da Nota Fiscal (Pendente / Emitida / Cancelada)"
+                      >
+                        <option value="Pendente">⏳ Pendente</option>
+                        <option value="Emitida">✅ Emitida</option>
+                        <option value="Cancelada">❌ Cancelada</option>
+                      </select>
                     </td>
 
-                    {/* Ações: Visualizar, EDITAR, Cancelar, Excluir */}
-                    <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* Visualizar Espelho */}
+                    {/* Ações: Visualizar, Alterar NFe, Cancelar, Excluir */}
+                    <td className="py-3 px-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* Botão Rápido Emitir se estiver Pendente */}
+                        {item.status === 'Pendente' && (
+                          <button
+                            type="button"
+                            onClick={() => handleAlterarStatusNFe(item.id, 'Emitida')}
+                            className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            title="Aprovar e Emitir Nota Fiscal"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Emitir</span>
+                          </button>
+                        )}
+
+                        {/* Visualizar Espelho DANFE */}
                         <button
                           onClick={() => setSelectedNFePreview(item)}
                           className="p-1.5 text-slate-500 hover:text-[#2d5a32] hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
@@ -893,14 +931,14 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        {/* EDITAR */}
+                        {/* Botão Alterar NFe */}
                         <button
                           onClick={() => handleOpenEditModal(item)}
-                          className="p-1.5 text-[#2d5a32] bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer font-bold flex items-center gap-1"
-                          title="Editar NFe (Dados do Cliente, Tributação, Descrição, Valor)"
+                          className="px-2.5 py-1.5 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer font-bold flex items-center gap-1 text-xs"
+                          title="Alterar dados desta Nota Fiscal Eletrônica"
                         >
-                          <Edit3 className="w-4 h-4 text-[#2d5a32]" />
-                          <span className="text-[10px] hidden sm:inline">Editar</span>
+                          <Edit3 className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Alterar</span>
                         </button>
 
                         {/* Cancelar */}
@@ -1020,19 +1058,17 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                             <span>Bloqueado</span>
                           </span>
                         </div>
-                        {!editingNFe && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormCondominio('');
-                              setFormExtratoVinculo('');
-                            }}
-                            className="px-3 py-2.5 text-xs text-slate-700 hover:text-slate-900 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold cursor-pointer whitespace-nowrap transition-colors"
-                            title="Limpar e selecionar outro condomínio do extrato"
-                          >
-                            Trocar
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormCondominio('');
+                            setFormExtratoVinculo('');
+                          }}
+                          className="px-3 py-2.5 text-xs text-slate-700 hover:text-slate-900 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold cursor-pointer whitespace-nowrap transition-colors"
+                          title="Trocar condomínio ou selecionar VOS CONDO"
+                        >
+                          Trocar
+                        </button>
                       </div>
                     ) : (
                       <select
@@ -1041,16 +1077,19 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                         required
                         className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-medium focus:ring-2 focus:ring-[#2d5a32] outline-hidden text-xs"
                       >
-                        <option value="">Selecione o Condomínio registrado no Extrato Financeiro...</option>
-                        {condominios.map((c) => (
-                          <option key={c.id} value={c.nome}>
-                            {c.nome} {c.plano ? `(${c.plano})` : ''}
-                          </option>
-                        ))}
+                        <option value="">Selecione o Condomínio / Origem...</option>
+                        <option value="VOS CONDO">VOS CONDO</option>
+                        {condominios
+                          .filter((c) => c.nome !== 'VOS CONDO')
+                          .map((c) => (
+                            <option key={c.id} value={c.nome}>
+                              {c.nome} {c.plano ? `(${c.plano})` : ''}
+                            </option>
+                          ))}
                       </select>
                     )}
                     <p className="text-[11px] text-slate-500 mt-1 italic flex items-center gap-1">
-                      <span>ℹ️ O nome do condomínio é um dado fixo do Extrato Financeiro, garantindo a conformidade dos dados contábeis da NFe.</span>
+                      <span>ℹ️ Selecione o Condomínio tomador ou VOS CONDO. Você pode alterar a qualquer momento.</span>
                     </p>
                   </div>
 
@@ -1143,18 +1182,39 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                   />
                 </div>
 
-                {/* Alíquota ISS */}
+                {/* ISS Retido / Tributos */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Alíquota ISS (%)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={formIss}
-                    onChange={(e) => setFormIss(e.target.value)}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl font-mono focus:ring-2 focus:ring-[#2d5a32] outline-hidden"
-                  />
+                  <label className="block font-bold text-slate-700 mb-1">
+                    ISS Retido / Tributos
+                  </label>
+                  {formModeloEmpresa === 'MEI' ? (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 flex items-center justify-between">
+                      <span>R$ 0,00 (0%)</span>
+                      <span className="text-[10px] bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded font-mono font-bold">
+                        MEI Zerado
+                      </span>
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      step="any"
+                      value={formIss}
+                      onChange={(e) => setFormIss(e.target.value)}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl font-mono focus:ring-2 focus:ring-[#2d5a32] outline-hidden"
+                    />
+                  )}
                 </div>
               </div>
+
+              {/* Banner Explicativo MEI */}
+              {formModeloEmpresa === 'MEI' && (
+                <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Regime MEI (Microempreendedor Individual):</span> ISS Retido / Tributos zerados (R$ 0,00) na Nota Fiscal. O recolhimento de impostos é efetuado em valor fixo mensal através do DAS-SIMEI, sem qualquer retenção pela fonte tomadora.
+                  </div>
+                </div>
+              )}
 
               {/* Data de Emissão & Status */}
               <div className="grid grid-cols-2 gap-3">
@@ -1173,11 +1233,11 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as 'Emitida' | 'Pendente' | 'Cancelada')}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-[#2d5a32] outline-hidden bg-white"
+                    className="w-full p-2.5 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-[#2d5a32] outline-hidden bg-white cursor-pointer"
                   >
-                    <option value="Emitida">Emitida</option>
-                    <option value="Pendente">Transmissão / Pendente</option>
-                    <option value="Cancelada">Cancelada</option>
+                    <option value="Pendente">⏳ Pendente</option>
+                    <option value="Emitida">✅ Emitida</option>
+                    <option value="Cancelada">❌ Cancelada</option>
                   </select>
                 </div>
               </div>
@@ -1335,8 +1395,12 @@ export const NFeSection: React.FC<NFeSectionProps> = ({
                   <span className="text-base font-black text-emerald-800">{formatarMoeda(selectedNFePreview.valorTotal)}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-sans font-bold block">ISS ({selectedNFePreview.aliquotaIss}%)</span>
-                  <span className="text-base font-bold text-amber-700">{formatarMoeda(selectedNFePreview.valorIss)}</span>
+                  <span className="text-[10px] text-slate-500 uppercase font-sans font-bold block">
+                    ISS Retido / Tributos ({selectedNFePreview.modeloEmpresa === 'MEI' ? 'MEI - R$ 0,00' : `${selectedNFePreview.aliquotaIss}%`})
+                  </span>
+                  <span className="text-base font-bold text-slate-800">
+                    {selectedNFePreview.modeloEmpresa === 'MEI' ? 'R$ 0,00 (MEI)' : formatarMoeda(selectedNFePreview.valorIss)}
+                  </span>
                 </div>
               </div>
 
