@@ -252,7 +252,7 @@ export const Header: React.FC<HeaderProps> = ({
                     : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
                 }`}
               >
-                <span>Anotações</span>
+                <span>Agenda</span>
               </button>
               <button
                 onClick={() => setSubTab('fornecedores')}

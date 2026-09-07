@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Condominio } from '../../types';
-import { formatarMoeda } from '../../utils/pricingEngine';
+import { formatarMoeda, calcularSaudeCondominio } from '../../utils/pricingEngine';
 import { apiGetRelatoriosOrcamento, apiSaveRelatorioOrcamento, apiDeleteRelatorioOrcamento } from '../../services/api';
 import {
   FileText,
@@ -39,7 +39,10 @@ import {
   Clock,
   ExternalLink,
   Bookmark,
-  Layers
+  Layers,
+  Activity,
+  Copy,
+  AlignLeft
 } from 'lucide-react';
 
 export interface OrcamentoRelatorioSalvo {
@@ -1354,6 +1357,239 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const [termoPesquisa, setTermoPesquisa] = useState('');
   const [filtroCondominio, setFiltroCondominio] = useState('todos');
   const [filtroMes, setFiltroMes] = useState('todos');
+
+  // ── Termômetro de Saúde Financeira & Resumo Descritivo (Rateio 2.5 + Saúde 2.2) ──
+  const [copiadoTexto, setCopiadoTexto] = useState(false);
+  const [textoEditavelCustom, setTextoEditavelCustom] = useState<string | null>(null);
+
+  // Flags para inclusão dinâmica na Caixa de Texto
+  const [flagsTextoRateio, setFlagsTextoRateio] = useState<{
+    cotaBasica: boolean;
+    fundoReserva: boolean;
+    extraordinarias: boolean;
+    fundoPintura: boolean;
+    fundoObras: boolean;
+    aguaSaneamento: boolean;
+    termometroGeral: boolean;
+    itensSaude: { [chave: string]: boolean };
+  }>({
+    cotaBasica: true,
+    fundoReserva: true,
+    extraordinarias: true,
+    fundoPintura: true,
+    fundoObras: true,
+    aguaSaneamento: true,
+    termometroGeral: true,
+    itensSaude: {},
+  });
+
+  const toggleFlagRateio = (chave: 'cotaBasica' | 'fundoReserva' | 'extraordinarias' | 'fundoPintura' | 'fundoObras' | 'aguaSaneamento' | 'termometroGeral') => {
+    setTextoEditavelCustom(null);
+    setFlagsTextoRateio(prev => ({ ...prev, [chave]: !prev[chave] }));
+  };
+
+  const toggleFlagSaudeItem = (nomeItem: string) => {
+    setTextoEditavelCustom(null);
+    setFlagsTextoRateio(prev => ({
+      ...prev,
+      itensSaude: {
+        ...prev.itensSaude,
+        [nomeItem]: prev.itensSaude[nomeItem] === false ? true : false
+      }
+    }));
+  };
+
+  const condominioAtual = useMemo(() => {
+    if (!condominioId || condominioId === 'custom') return null;
+    return condominios.find((c) => c.id === condominioId) || null;
+  }, [condominioId, condominios]);
+
+  const saudeFinanceiraDetalhes = useMemo(() => {
+    if (!condominioAtual) {
+      return {
+        itensValidos: [] as { nome: string; valor: number; tipo: 'caixa' | 'fundo' }[],
+        saldoTotal: 0,
+        score: 0,
+        status: 'N/A',
+        cor: '#94a3b8',
+        mensagem: 'Condomínio personalizado ou sem dados de saúde cadastrados.',
+        ratio: 0,
+        gastoMedio: 0,
+        dataUltimaAlteracao: undefined
+      };
+    }
+
+    const livreCaixa = Number(condominioAtual.livreCaixa) || 0;
+    const fundoObras = Number(condominioAtual.fundoObras) || 0;
+    const fundoPintura = Number(condominioAtual.fundoPintura) || 0;
+    const fundoReforma = Number(condominioAtual.fundoReforma) || 0;
+    const gastoMedio = Number(condominioAtual.gastoMedioMensal) || 0;
+
+    const saudeCalculada = calcularSaudeCondominio(
+      livreCaixa,
+      fundoObras,
+      fundoPintura,
+      fundoReforma,
+      gastoMedio
+    );
+
+    const todosItens: { nome: string; valor: number; tipo: 'caixa' | 'fundo' }[] = [
+      { nome: 'Caixa Livre (Saldo Disponível)', valor: livreCaixa, tipo: 'caixa' },
+      { nome: 'Fundo de Obras', valor: fundoObras, tipo: 'fundo' },
+      { nome: 'Fundo de Pintura', valor: fundoPintura, tipo: 'fundo' },
+      { nome: 'Fundo de Reforma / Reserva', valor: fundoReforma, tipo: 'fundo' }
+    ];
+
+    // Apenas valores acima de 10,00 reais (conforme solicitado)
+    const itensValidos = todosItens.filter((item) => item.valor > 10);
+
+    return {
+      itensValidos,
+      saldoTotal: saudeCalculada.saldoTotal,
+      score: saudeCalculada.score,
+      status: saudeCalculada.status,
+      cor: saudeCalculada.cor,
+      mensagem: saudeCalculada.mensagem,
+      ratio: saudeCalculada.ratio,
+      gastoMedio,
+      dataUltimaAlteracao: condominioAtual.dataUltimaAlteracaoCaixa
+    };
+  }, [condominioAtual]);
+
+  const textoDescritivoGerado = useMemo(() => {
+    const linhas: string[] = [];
+    linhas.push(`=======================================================`);
+    linhas.push(`DEMONSTRATIVO FINANCEIRO E RATEIO - ${nomeCondominioExibicao.toUpperCase()}`);
+    linhas.push(`Mês de Referência: ${mesReferencia} | Vencimento: ${vencimentoBoleto || 'N/A'}`);
+    linhas.push(`Total de Unidades: ${numeroUnidades}`);
+    linhas.push(`=======================================================\n`);
+
+    const temAlgumItemRateio =
+      flagsTextoRateio.cotaBasica ||
+      flagsTextoRateio.fundoReserva ||
+      flagsTextoRateio.extraordinarias ||
+      flagsTextoRateio.fundoPintura ||
+      flagsTextoRateio.fundoObras ||
+      flagsTextoRateio.aguaSaneamento;
+
+    if (temAlgumItemRateio) {
+      linhas.push(`--- 2.5 COMPOSIÇÃO DETALHADA DO RATEIO POR CONDOMÍNIO ---\n`);
+
+      // 1. Cota Básica (Ordinárias)
+      if (flagsTextoRateio.cotaBasica) {
+        linhas.push(`1. COTA BÁSICA (DESPESAS ORDINÁRIAS DO MÊS) - Subtotal: ${formatarMoeda(totalOrdinarias)}`);
+        if (despesasOrdinarias.length > 0) {
+          despesasOrdinarias.forEach((d, idx) => {
+            const ref = d.vencimentoReferencia ? ` (Ref/Venc: ${d.vencimentoReferencia})` : '';
+            linhas.push(`   • ${d.descricao || `Item ${idx + 1}`}${ref}: ${formatarMoeda(d.valor || 0)}`);
+          });
+        } else {
+          linhas.push(`   • Nenhuma despesa ordinária lançada`);
+        }
+        linhas.push(``);
+      }
+
+      // 2. Fundo de Reserva
+      if (flagsTextoRateio.fundoReserva) {
+        linhas.push(`2. FUNDO DE RESERVA - Total: ${formatarMoeda(totalFundoReservaCalculado)}`);
+        linhas.push(`   • Alíquota aplicada: ${fundoReservaValor}% sobre o subtotal de despesas ordinárias (${formatarMoeda(totalOrdinarias)})`);
+        linhas.push(``);
+      }
+
+      // 3. Extraordinárias e Obras
+      if (flagsTextoRateio.extraordinarias) {
+        linhas.push(`3. DESPESAS EXTRAORDINÁRIAS E OBRAS - Subtotal: ${formatarMoeda(totalExtraordinarias)}`);
+        if (despesasExtraordinarias.length > 0) {
+          despesasExtraordinarias.forEach((e, idx) => {
+            linhas.push(`   • ${e.descricao || `Obra ${idx + 1}`} (Rateio ${e.percentualRateio}%): ${formatarMoeda(e.valor || 0)}`);
+          });
+        } else {
+          linhas.push(`   • Nenhuma despesa extraordinária lançada`);
+        }
+        linhas.push(``);
+      }
+
+      // 4. Fundo Pintura
+      if (flagsTextoRateio.fundoPintura) {
+        linhas.push(`4. FUNDO DE PINTURA - Total: ${formatarMoeda(totalFundoPinturaCalculado)}`);
+        linhas.push(`   • Valor por unidade: ${formatarMoeda(fundoPinturaPorUnidade)} x ${numeroUnidades} unidades`);
+        linhas.push(``);
+      }
+
+      // 5. Fundo Obras
+      if (flagsTextoRateio.fundoObras) {
+        linhas.push(`5. FUNDO DE OBRAS - Total: ${formatarMoeda(totalFundoObrasCalculado)}`);
+        linhas.push(`   • ${descricaoFundoObras || 'Fundo Permanente de Obras'}: ${formatarMoeda(fundoObrasPorUnidade)}/unidade (${formatarMoeda(totalFundoObrasCalculado)} total)`);
+        linhas.push(``);
+      }
+
+      // 6. Custos de Água e Saneamento
+      if (flagsTextoRateio.aguaSaneamento) {
+        linhas.push(`6. CUSTOS DE ÁGUA E SANEAMENTO - Total: ${formatarMoeda(totalAgua)}`);
+        linhas.push(`   • 6.1 Taxa Mínima (${composicaoAgua}): ${formatarMoeda(taxaMinimaAgua || 0)}`);
+        linhas.push(`   • 6.2 Excedente de Consumo: ${formatarMoeda(excedenteAguaTotal || 0)}`);
+        if (excedentesExtras && excedentesExtras.length > 0) {
+          excedentesExtras.forEach((extra) => {
+            linhas.push(`   • 6.2 Extra - ${extra.nome || 'Excedente adicional'}: ${formatarMoeda(extra.valor || 0)}`);
+          });
+        }
+        linhas.push(``);
+      }
+
+      // 7. TAXA DE BOLETO RETIRADA DA CAIXA DE TEXTO CONFORME SOLICITADO
+    }
+
+    // 2.2 Termômetro de Saúde Financeira
+    if (flagsTextoRateio.termometroGeral) {
+      const itensValidosMarcados = saudeFinanceiraDetalhes.itensValidos.filter(
+        (item) => flagsTextoRateio.itensSaude[item.nome] !== false
+      );
+
+      if (itensValidosMarcados.length > 0) {
+        linhas.push(`--- 2.2 TERMÔMETRO DE SAÚDE FINANCEIRA DO CONDOMÍNIO ---\n`);
+        linhas.push(`Saldos Disponíveis em Caixa e Fundos (apenas valores acima de R$ 10,00):`);
+        itensValidosMarcados.forEach((item) => {
+          linhas.push(`   ✔ ${item.nome}: ${formatarMoeda(item.valor)}`);
+        });
+      } else if (saudeFinanceiraDetalhes.itensValidos.length === 0) {
+        linhas.push(`--- 2.2 TERMÔMETRO DE SAÚDE FINANCEIRA DO CONDOMÍNIO ---\n`);
+        linhas.push(`Nenhum saldo em caixa ou fundos com valor acima de R$ 10,00 cadastrado para este condomínio.`);
+      }
+    }
+
+    return linhas.join('\n');
+  }, [
+    nomeCondominioExibicao,
+    mesReferencia,
+    vencimentoBoleto,
+    numeroUnidades,
+    flagsTextoRateio,
+    totalOrdinarias,
+    despesasOrdinarias,
+    totalFundoReservaCalculado,
+    fundoReservaValor,
+    totalExtraordinarias,
+    despesasExtraordinarias,
+    totalFundoPinturaCalculado,
+    fundoPinturaPorUnidade,
+    totalFundoObrasCalculado,
+    descricaoFundoObras,
+    fundoObrasPorUnidade,
+    totalAgua,
+    composicaoAgua,
+    taxaMinimaAgua,
+    excedenteAguaTotal,
+    excedentesExtras,
+    saudeFinanceiraDetalhes
+  ]);
+
+  const textoExibicaoFinal = textoEditavelCustom !== null ? textoEditavelCustom : textoDescritivoGerado;
+
+  const handleCopiarTextoDescritivo = () => {
+    navigator.clipboard.writeText(textoExibicaoFinal);
+    setCopiadoTexto(true);
+    setTimeout(() => setCopiadoTexto(false), 2500);
+  };
 
   const [modalSalvarAberto, setModalSalvarAberto] = useState(false);
   const [tituloSalvar, setTituloSalvar] = useState('');
@@ -3021,6 +3257,420 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
                 <span>Imprimir / Gerar PDF</span>
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO 3: RESUMO DESCRITIVO DOS ITENS DO RATEIO (2.5) & TERMÔMETRO DE SAÚDE FINANCEIRA (2.2) (Oculto no PDF) */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6 print:hidden transition-all">
+        <div className="border-b pb-4 border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-[#1c3220] uppercase tracking-wider flex items-center gap-2">
+                <AlignLeft className="w-5 h-5 text-[#2d5a32]" />
+                <span>3 - Resumo Descritivo dos Itens do Rateio (2.5) & Termômetro de Saúde Financeira (2.2)</span>
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500">
+              Discriminação textual de cada item do rateio com seu valor e extrato do termômetro de saúde financeira (itens &gt; R$ 10,00)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 print:hidden">
+            {textoEditavelCustom !== null && (
+              <button
+                type="button"
+                onClick={() => setTextoEditavelCustom(null)}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                title="Restaurar o texto gerado automaticamente pelas tabelas"
+              >
+                Restaurar Original
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleCopiarTextoDescritivo}
+              className={`text-xs font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                copiadoTexto
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-[#2d5a32] hover:bg-[#1f4223] text-white'
+              }`}
+            >
+              {copiadoTexto ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Copiado com Sucesso!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Copiar Texto Completo</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* CARDS VISUAIS DE DESTAQUE */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Card Esquerdo: Composição dos Itens do Rateio 2.5 com Flags Individuais */}
+          <div className="bg-[#f4f7f4] p-4 rounded-xl border border-emerald-200/80 space-y-3">
+            <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+              <span className="font-bold text-xs text-[#1c3220] uppercase tracking-wider flex items-center gap-1.5">
+                <Calculator className="w-4 h-4 text-[#2d5a32]" />
+                Itens que Compõem o Rateio (2.5)
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">
+                Desmarque a caixa para retirar o item do texto
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs divide-y divide-emerald-100">
+              {/* 1. Cota Básica */}
+              <div className="pt-1.5 first:pt-0">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={flagsTextoRateio.cotaBasica}
+                      onChange={() => toggleFlagRateio('cotaBasica')}
+                      className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                      title="Marcar/desmarcar para incluir ou retirar da caixa de texto"
+                    />
+                    <span className={flagsTextoRateio.cotaBasica ? 'font-bold text-slate-800' : 'text-slate-400 line-through'}>
+                      1. Cota Básica (Ordinárias)
+                    </span>
+                  </label>
+                  <span className={`font-mono ${flagsTextoRateio.cotaBasica ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                    {formatarMoeda(totalOrdinarias)}
+                  </span>
+                </div>
+                {despesasOrdinarias.length > 0 && flagsTextoRateio.cotaBasica && (
+                  <div className="pl-6 pt-1 space-y-0.5 text-[11px] text-slate-600">
+                    {despesasOrdinarias.map((d) => (
+                      <div key={d.id} className="flex justify-between">
+                        <span className="truncate pr-2">• {d.descricao || 'Item'}{d.vencimentoReferencia ? ` (${d.vencimentoReferencia})` : ''}</span>
+                        <span className="font-mono font-semibold text-slate-700">{formatarMoeda(d.valor || 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Fundo Reserva */}
+              <div className="pt-1.5">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={flagsTextoRateio.fundoReserva}
+                      onChange={() => toggleFlagRateio('fundoReserva')}
+                      className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                      title="Marcar/desmarcar para incluir ou retirar da caixa de texto"
+                    />
+                    <span className={flagsTextoRateio.fundoReserva ? 'font-bold text-slate-800' : 'text-slate-400 line-through'}>
+                      2. Fundo de Reserva ({fundoReservaValor}%)
+                    </span>
+                  </label>
+                  <span className={`font-mono ${flagsTextoRateio.fundoReserva ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                    {formatarMoeda(totalFundoReservaCalculado)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Despesas Extraordinárias */}
+              <div className="pt-1.5">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={flagsTextoRateio.extraordinarias}
+                      onChange={() => toggleFlagRateio('extraordinarias')}
+                      className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                      title="Marcar/desmarcar para incluir ou retirar da caixa de texto"
+                    />
+                    <span className={flagsTextoRateio.extraordinarias ? 'font-bold text-slate-800' : 'text-slate-400 line-through'}>
+                      3. Despesas Extraordinárias / Obras
+                    </span>
+                  </label>
+                  <span className={`font-mono ${flagsTextoRateio.extraordinarias ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                    {formatarMoeda(totalExtraordinarias)}
+                  </span>
+                </div>
+                {despesasExtraordinarias.length > 0 && flagsTextoRateio.extraordinarias && (
+                  <div className="pl-6 pt-1 space-y-0.5 text-[11px] text-slate-600">
+                    {despesasExtraordinarias.map((e) => (
+                      <div key={e.id} className="flex justify-between">
+                        <span className="truncate pr-2">• {e.descricao || 'Obra'} ({e.percentualRateio}%)</span>
+                        <span className="font-mono font-semibold text-slate-700">{formatarMoeda(e.valor || 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Fundo Pintura */}
+              <div className="pt-1.5">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={flagsTextoRateio.fundoPintura}
+                      onChange={() => toggleFlagRateio('fundoPintura')}
+                      className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                      title="Marcar/desmarcar para incluir ou retirar da caixa de texto"
+                    />
+                    <span className={flagsTextoRateio.fundoPintura ? 'font-bold text-slate-800' : 'text-slate-400 line-through'}>
+                      4. Fundo de Pintura ({formatarMoeda(fundoPinturaPorUnidade)}/un)
+                    </span>
+                  </label>
+                  <span className={`font-mono ${flagsTextoRateio.fundoPintura ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                    {formatarMoeda(totalFundoPinturaCalculado)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 5. Fundo Obras */}
+              <div className="pt-1.5">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={flagsTextoRateio.fundoObras}
+                      onChange={() => toggleFlagRateio('fundoObras')}
+                      className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                      title="Marcar/desmarcar para incluir ou retirar da caixa de texto"
+                    />
+                    <span className={flagsTextoRateio.fundoObras ? 'font-bold text-slate-800' : 'text-slate-400 line-through'}>
+                      5. Fundo de Obras ({formatarMoeda(fundoObrasPorUnidade)}/un)
+                    </span>
+                  </label>
+                  <span className={`font-mono ${flagsTextoRateio.fundoObras ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                    {formatarMoeda(totalFundoObrasCalculado)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 6. Água e Saneamento */}
+              <div className="pt-1.5">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={flagsTextoRateio.aguaSaneamento}
+                      onChange={() => toggleFlagRateio('aguaSaneamento')}
+                      className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                      title="Marcar/desmarcar para incluir ou retirar da caixa de texto"
+                    />
+                    <span className={flagsTextoRateio.aguaSaneamento ? 'font-bold text-slate-800' : 'text-slate-400 line-through'}>
+                      6. Água e Saneamento (6.1 + 6.2)
+                    </span>
+                  </label>
+                  <span className={`font-mono ${flagsTextoRateio.aguaSaneamento ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                    {formatarMoeda(totalAgua)}
+                  </span>
+                </div>
+                {flagsTextoRateio.aguaSaneamento && (
+                  <div className="pl-6 pt-1 space-y-0.5 text-[11px] text-slate-600">
+                    <div className="flex justify-between">
+                      <span>• 6.1 Taxa Mínima ({composicaoAgua})</span>
+                      <span className="font-mono font-semibold text-slate-700">{formatarMoeda(taxaMinimaAgua || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>• 6.2 Excedente de Consumo</span>
+                      <span className="font-mono font-semibold text-slate-700">{formatarMoeda(excedenteAguaTotal || 0)}</span>
+                    </div>
+                    {excedentesExtras && excedentesExtras.map((ex) => (
+                      <div key={ex.id} className="flex justify-between">
+                        <span>• 6.2 Extra ({ex.nome || 'Excedente'})</span>
+                        <span className="font-mono font-semibold text-slate-700">{formatarMoeda(ex.valor || 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 7. Taxa de Boleto - Indicador de não inclusão no texto */}
+              <div className="pt-1.5 opacity-60">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                    <span>7. Taxa de Boleto (Apenas Relatório)</span>
+                  </span>
+                  <span className="font-mono">{formatarMoeda(totalTaxaBoletoCalculado)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card Direito: 2.2 Termômetro de Saúde Financeira com Flag Geral e Flags por Caixa */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={flagsTextoRateio.termometroGeral}
+                    onChange={() => toggleFlagRateio('termometroGeral')}
+                    className="w-4 h-4 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                    title="Marcar/desmarcar para incluir ou retirar a seção de Saúde Financeira da caixa de texto"
+                  />
+                  <span className={`font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 ${
+                    flagsTextoRateio.termometroGeral ? 'text-[#1c3220]' : 'text-slate-400 line-through'
+                  }`}>
+                    <Activity className="w-4 h-4 text-[#2d5a32]" />
+                    2.2 Termômetro de Saúde Financeira
+                  </span>
+                </label>
+                {saudeFinanceiraDetalhes.score > 0 && (
+                  <span
+                    className="font-bold text-[11px] px-2.5 py-0.5 rounded-full text-white font-mono shadow-2xs"
+                    style={{ backgroundColor: saudeFinanceiraDetalhes.cor }}
+                  >
+                    Nota: {saudeFinanceiraDetalhes.score}/10 • {saudeFinanceiraDetalhes.status}
+                  </span>
+                )}
+              </div>
+
+              {/* Caixa Livre e Fundos > R$ 10,00 com Flag individual para cada caixa */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-bold uppercase tracking-tight text-slate-500">
+                  Caixa Livre & Fundos (&gt; R$ 10,00) — Desmarque para retirar do texto:
+                </div>
+
+                {saudeFinanceiraDetalhes.itensValidos.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {saudeFinanceiraDetalhes.itensValidos.map((item, idx) => {
+                      const itemMarcado = flagsTextoRateio.itensSaude[item.nome] !== false;
+                      const ativo = itemMarcado && flagsTextoRateio.termometroGeral;
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-2.5 rounded-lg border shadow-2xs flex flex-col justify-between transition-all ${
+                            ativo ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'
+                          }`}
+                        >
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={ativo}
+                              disabled={!flagsTextoRateio.termometroGeral}
+                              onChange={() => toggleFlagSaudeItem(item.nome)}
+                              className="w-3.5 h-3.5 rounded text-[#2d5a32] focus:ring-[#2d5a32] cursor-pointer accent-[#2d5a32]"
+                              title="Marcar/desmarcar para incluir ou retirar este item da caixa de texto"
+                            />
+                            <span className={`text-[11px] font-semibold truncate ${ativo ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
+                              {item.nome}
+                            </span>
+                          </label>
+                          <span className={`text-sm font-mono font-bold mt-1 pl-5.5 ${ativo ? 'text-[#2d5a32]' : 'text-slate-400'}`}>
+                            {formatarMoeda(item.valor)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs font-medium">
+                    Nenhum item de caixa livre ou fundo com saldo superior a R$ 10,00 cadastrado neste condomínio.
+                  </div>
+                )}
+              </div>
+
+              {/* Resumo da Saúde */}
+              <div className="p-3 bg-slate-900 text-white rounded-xl text-xs space-y-1.5 shadow-xs">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span>Total em Reservas:</span>
+                  <strong className="text-emerald-300 font-mono text-xs">{formatarMoeda(saudeFinanceiraDetalhes.saldoTotal)}</strong>
+                </div>
+                {saudeFinanceiraDetalhes.ratio > 0 && (
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span>Proporção x Gasto Mensal:</span>
+                    <strong className="text-emerald-300 font-mono text-xs">{saudeFinanceiraDetalhes.ratio}x</strong>
+                  </div>
+                )}
+                {saudeFinanceiraDetalhes.mensagem && (
+                  <p className="text-[11px] text-slate-300 italic pt-1 border-t border-slate-800">
+                    {saudeFinanceiraDetalhes.mensagem}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {saudeFinanceiraDetalhes.dataUltimaAlteracao && (
+              <div className="text-[10px] text-slate-400 text-right pt-2">
+                Última alteração do caixa: {saudeFinanceiraDetalhes.dataUltimaAlteracao}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* CAIXA DE TEXTO DESCRITIVA INTEGRADA (EDITÁVEL / COPIÁVEL) */}
+        <div className="space-y-2 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-[#2d5a32]" />
+              <span>Caixa de Texto com Descrição e Valores (Rateio 2.5 + Saúde 2.2):</span>
+            </label>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Pronto para copiar e colar no WhatsApp, e-mails ou ata de assembleia
+            </span>
+          </div>
+
+          <div className="relative rounded-xl border border-slate-300 overflow-hidden bg-slate-50 shadow-inner focus-within:border-[#2d5a32] focus-within:ring-2 focus-within:ring-[#2d5a32]/20">
+            <textarea
+              rows={12}
+              value={textoExibicaoFinal}
+              onChange={(e) => setTextoEditavelCustom(e.target.value)}
+              className="w-full p-4 font-mono text-xs text-slate-800 bg-transparent resize-y outline-none leading-relaxed"
+              placeholder="Descrição completa do rateio e saúde financeira..."
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
+            <span>
+              {textoExibicaoFinal.length} caracteres • {textoExibicaoFinal.split('\n').length} linhas
+            </span>
+            <div className="flex items-center gap-3">
+              {textoEditavelCustom !== null && (
+                <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  Texto personalizado manualmente
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleCopiarTextoDescritivo}
+                className="font-bold text-[#2d5a32] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copiar texto</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Bar at Bottom */}
+        <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-200 print:hidden">
+          <p className="text-xs font-semibold text-slate-500">
+            Relatório pronto para exportação, impressão ou envio aos condôminos em PDF.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAbrirModalSalvar}
+              className="bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Salvar Orçamento</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="bg-[#2d5a32] hover:bg-[#1f4223] active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Imprimir / Gerar PDF</span>
+            </button>
           </div>
         </div>
       </div>
