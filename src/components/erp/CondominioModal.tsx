@@ -244,7 +244,8 @@ export const CondominioModal: React.FC<CondominioModalProps> = ({ condominio, al
       metaFundoPinturaCustom,
       anotacoes,
       historicoCaixa: historicoAtualizado,
-      templatesRelatorio
+      templatesRelatorio,
+      moradores: condominio?.moradores
     };
 
     onSave(updatedCondo);

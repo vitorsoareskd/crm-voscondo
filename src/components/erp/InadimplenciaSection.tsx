@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Inadimplente, Condominio } from '../../types';
-import { apiSaveInadimplente, apiUpdateInadimplente, apiDeleteInadimplente } from '../../services/api';
 import { formatarMoeda } from '../../utils/pricingEngine';
 import { AlertCircle, Plus, PhoneCall, ShieldAlert, CheckCircle2, Search, Trash2 } from 'lucide-react';
 
@@ -46,15 +45,14 @@ export const InadimplenciaSection: React.FC<InadimplenciaSectionProps> = ({
     };
 
     setInadimplentes([novoInad, ...inadimplentes]);
-    apiSaveInadimplente(novoInad).catch((err) => console.error('Erro ao salvar inadimplente no SQLite:', err));
     setUnidade('');
     setMorador('');
     setValor('');
   };
 
   const handleAtualizarStatus = (id: string, novoStatus: Inadimplente['statusCobranca']) => {
-    setInadimplentes((prev) => {
-      const updated = prev.map((item) =>
+    setInadimplentes((prev) =>
+      prev.map((item) =>
         item.id === id
           ? {
               ...item,
@@ -62,18 +60,12 @@ export const InadimplenciaSection: React.FC<InadimplenciaSectionProps> = ({
               dataUltimoContato: new Date().toISOString().split('T')[0]
             }
           : item
-      );
-      const target = updated.find((i) => i.id === id);
-      if (target) {
-        apiUpdateInadimplente(id, target).catch((err) => console.error('Erro ao atualizar inadimplente no SQLite:', err));
-      }
-      return updated;
-    });
+      )
+    );
   };
 
   const handleConfirmExcluir = () => {
     if (itemParaExcluir) {
-      apiDeleteInadimplente(itemParaExcluir.id).catch((err) => console.error('Erro ao excluir inadimplente no SQLite:', err));
       setInadimplentes((prev) => prev.filter((item) => item.id !== itemParaExcluir.id));
       setItemParaExcluir(null);
     }

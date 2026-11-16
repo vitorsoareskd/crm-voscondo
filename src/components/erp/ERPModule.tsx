@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Condominio, Inadimplente, TarefaGantt, TarefaEquipe, Fornecedor } from '../../types';
+import { Condominio, Inadimplente, TarefaGantt, TarefaEquipe, Fornecedor, UserProfile } from '../../types';
 import { calcularSaudeCondominio, formatarMoeda } from '../../utils/pricingEngine';
 import { CondominioModal } from './CondominioModal';
 import { InadimplenciaSection } from './InadimplenciaSection';
@@ -8,9 +8,10 @@ import { TasksSection } from './TasksSection';
 import { FornecedoresSection } from './FornecedoresSection';
 import { RelatoriosSection } from './RelatoriosSection';
 import { CompliancePanel } from './CompliancePanel';
-
-import { ContratosAlertas } from './ContratosAlertas';
-import { apiSaveCondominio, apiDeleteCondominio } from '../../services/api';
+import { HealthScoreSection } from './HealthScoreSection';
+import { MoradoresSpreadsheetSection } from './MoradoresSpreadsheetSection';
+import { SindicoBotModule } from '../chat/SindicoBotModule';
+import { ParkingRentalModule } from '../parking/ParkingRentalModule';
 import { Table, Plus, Download, Upload, Search, Edit3, Trash2, Eye, EyeOff, Activity, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 interface ERPModuleProps {
@@ -24,9 +25,8 @@ interface ERPModuleProps {
   setTarefasEquipe: React.Dispatch<React.SetStateAction<TarefaEquipe[]>>;
   fornecedores: Fornecedor[];
   setFornecedores: React.Dispatch<React.SetStateAction<Fornecedor[]>>;
-  agenda: any[];
-  setAgenda: React.Dispatch<React.SetStateAction<any[]>>;
   subTab: string;
+  currentUser: UserProfile;
 }
 
 export const ERPModule: React.FC<ERPModuleProps> = ({
@@ -40,9 +40,8 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
   setTarefasEquipe,
   fornecedores,
   setFornecedores,
-  agenda,
-  setAgenda,
-  subTab
+  subTab,
+  currentUser
 }) => {
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('todos');
@@ -55,7 +54,6 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
   };
 
   const handleSaveCondo = (condo: Condominio) => {
-    apiSaveCondominio(condo).catch((err) => console.error('Erro ao salvar condomínio no SQLite:', err));
     setCondominios((prev) => {
       const exists = prev.some((c) => c.id === condo.id);
       if (exists) {
@@ -79,7 +77,6 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
 
   const confirmarExclusaoCondo = () => {
     if (condoParaExcluir) {
-      apiDeleteCondominio(condoParaExcluir.id).catch((err) => console.error('Erro ao excluir condomínio no SQLite:', err));
       setCondominios((prev) => prev.filter((c) => c.id !== condoParaExcluir.id));
       setCondoParaExcluir(null);
     }
@@ -104,18 +101,18 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
       'livre caixa do condominio',
       'fundo obras',
       'fundo pintura',
-      'fundo reserva',
+      'fundo reforma',
       'gasto medio do condo',
       'rendimento medio do condo',
       'data ultima alteracao caixa',
       'frase livre caixa',
       'frase fundo obras',
       'frase fundo pintura',
-      'frase fundo reserva',
+      'frase fundo reforma',
       'nota livre caixa',
       'nota fundo obras',
       'nota fundo pintura',
-      'nota fundo reserva'
+      'nota fundo reforma'
     ];
 
     const rows = condominios.map((c) => {
@@ -168,15 +165,19 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
     document.body.removeChild(link);
   };
 
-  const condominiosFiltrados = condominios.filter((c) => {
-    const matchSearch =
-      (c.nome || '').toLowerCase().includes(busca.toLowerCase()) ||
-      (c.cnpj || '').includes(busca) ||
-      (c.sindicoResponsavel || '').toLowerCase().includes(busca.toLowerCase()) ||
-      (c.id || '').toLowerCase().includes(busca.toLowerCase());
-    const matchStatus = statusFiltro === 'todos' || c.status === statusFiltro;
-    return matchSearch && matchStatus;
-  });
+  const condominiosFiltrados = (Array.isArray(condominios) ? condominios : [])
+    .filter((c) => {
+      if (!c) return false;
+      const q = busca.toLowerCase();
+      const matchSearch =
+        String(c.nome || '').toLowerCase().includes(q) ||
+        String(c.cnpj || '').includes(busca) ||
+        String(c.sindicoResponsavel || '').toLowerCase().includes(q) ||
+        String(c.id || '').toLowerCase().includes(q);
+      const matchStatus = statusFiltro === 'todos' || c.status === statusFiltro;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => (a.id || '').localeCompare(b.id || '', undefined, { numeric: true, sensitivity: 'base' }));
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -244,16 +245,16 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
                 className="p-2.5 rounded-xl border border-slate-300 text-xs bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-[#2d5a32] shadow-2xs w-full md:w-80"
               >
                 <option value="">-- Puxar Perfil por ID do Condomínio --</option>
-                {condominios.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    [{c.id}] {c.nome} ({c.status})
-                  </option>
-                ))}
+                {[...condominios]
+                  .sort((a, b) => (a.id || '').localeCompare(b.id || '', undefined, { numeric: true, sensitivity: 'base' }))
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      [{c.id}] {c.nome} ({c.status})
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
-
-          <ContratosAlertas />
 
           {/* Search and Filters */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -405,8 +406,14 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
               </table>
             </div>
           </div>
-          
-          <CompliancePanel />
+
+          {/* Base de Unidades, Moradores, Proprietários e Vagas (Importação de Tabela Excel) */}
+          <MoradoresSpreadsheetSection
+            condominios={condominios}
+            setCondominios={setCondominios}
+          />
+
+          <CompliancePanel condominios={condominios} />
         </div>
       )}
 
@@ -433,8 +440,6 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
         <TasksSection
           tarefas={tarefasEquipe}
           setTarefas={setTarefasEquipe}
-          agenda={agenda}
-          setAgenda={setAgenda}
           condominios={condominios}
         />
       )}
@@ -453,7 +458,25 @@ export const ERPModule: React.FC<ERPModuleProps> = ({
         <RelatoriosSection condominios={condominios} />
       )}
 
+      {/* SubTabs Customer Success Separados em 4 Módulos */}
+      {(subTab === 'cs_inadimplencia' || subTab === 'health_score') && (
+        <HealthScoreSection mode="inadimplencia" condominios={condominios} />
+      )}
+      {subTab === 'cs_sla' && (
+        <HealthScoreSection mode="sla" condominios={condominios} />
+      )}
+      {subTab === 'cs_mandato' && (
+        <HealthScoreSection mode="mandato" condominios={condominios} />
+      )}
+      {subTab === 'cs_nps' && (
+        <HealthScoreSection mode="nps" condominios={condominios} />
+      )}
 
+      {/* SubTab 9: Chatbot do Síndico & Notificações WhatsApp */}
+      {subTab === 'chatbot' && <SindicoBotModule currentUser={currentUser} condominios={condominios} />}
+
+      {/* SubTab 10: Agenda & Aluguel de Vagas de Garagem */}
+      {subTab === 'vagas' && <ParkingRentalModule currentUser={currentUser} condominios={condominios} />}
 
       {/* Editing / Creating Modal */}
       {(editingCondo || isCreating) && (

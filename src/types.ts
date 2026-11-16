@@ -27,14 +27,27 @@ export interface TemplateRelatorio {
   despesasPadrao?: string[];
   fundoReservaAliquota?: string;
   fundoReservaValor?: string;
-  obrasDescricao?: string; // legível para retrocompatibilidade
+  obrasDescricao?: string;
   obrasPadrao?: string[];
   fundoPinturaValor?: string;
   fundoObrasValor?: string;
   taxaBoletoValor?: string;
-  aguaTipoRateio?: string; // 'fracao_ideal' | 'divisao_igual' | 'moradores' | 'consumo_medido'
+  aguaTipoRateio?: string;
   aguaComposicao?: string;
   unidadesPadrao?: TemplateUnidadePadrao[];
+}
+
+export interface MoradorCondominio {
+  id: string;
+  condominioId: string;
+  condominioNome?: string;
+  bloco: string;
+  unidade: string;
+  nomeMorador: string;
+  email: string;
+  whatsapp: string;
+  especificidade: 'Morador' | 'Proprietário' | 'Morador e Proprietário' | 'Inquilino';
+  vagaGaragem: string;
 }
 
 export interface Condominio {
@@ -53,6 +66,7 @@ export interface Condominio {
   banco: string;
   agenciaEConta: string;
   senhaBanco?: string;
+  moradores?: MoradorCondominio[];
   
   // Precificação / CRM
   complexidade: Complexidade;
@@ -82,25 +96,10 @@ export interface Condominio {
   notaFundoReforma?: number; // 1 a 5 (legado)
   metaLivreCaixaCustom?: number; // Meta Opcional (R$) para Livre Caixa
   metaFundoObrasCustom?: number; // Meta Opcional (R$) para Fundo Obra
-  metaFundoPinturaCustom?: number; // Meta Opcional (R$) para Fundo Pintura
+  metaFundoPinturaCustom?: number; // Meta Opcional (R$) em aberto para Fundo Pintura
   anotacoes?: string; // Anotações gerais e customizáveis do condomínio
   historicoCaixa?: RegistroHistoricoCaixa[]; // Mantendo os 5 últimos registros para conferência
   templatesRelatorio?: TemplateRelatorio;
-}
-
-export interface LeadPreFunil {
-  id: string;
-  cnpj: string;
-  nome: string;
-  cidade: string;
-  bairro: string;
-  rua: string;
-  unidades?: number;
-  telefone?: string;
-  email?: string;
-  contato?: string;
-  dataCadastro?: string;
-  observacoes?: string;
 }
 
 export interface ServicoExtra {
@@ -157,33 +156,6 @@ export interface TarefaEquipe {
   concluida: boolean;
   dataLimite: string;
   atribuidoPara: string;
-  googleTaskId?: string;
-}
-
-export type TipoRecorrencia = 'Nenhuma' | 'Diária' | 'Semanal' | 'Mensal' | 'Anual';
-
-export interface AgendaEvent {
-  id: string;
-  condominioId?: string;
-  condominioNome?: string;
-  titulo: string;
-  descricao?: string;
-  dataHora: string; // ISO datetime
-  recorrencia: TipoRecorrencia;
-  dataFinalRecorrencia?: string; // ISO date for when recurrence ends
-  notificacaoEnviada5Dias: boolean;
-  notificacaoEnviada1Dia: boolean;
-  notificacaoEnviada2Horas: boolean;
-  googleEventId?: string;
-}
-
-export interface GoogleConfig {
-  clientId: string;
-  accessToken?: string;
-  tokenExpiresAt?: number; // timestamp ms
-  userEmail?: string;
-  userName?: string;
-  userPicture?: string;
 }
 
 export interface ServicoFeitoFornecedor {
@@ -192,6 +164,7 @@ export interface ServicoFeitoFornecedor {
   condominio: string;
   descricao: string;
 }
+
 export interface Fornecedor {
   id: string;
   nome: string;
@@ -249,3 +222,131 @@ export interface ProjecaoItem {
   isImposto?: boolean;
 }
 
+// ==========================================
+// NOVOS TIPOS: RBAC, Funil B2B, Vistorias, Health Score, Chatbot e Vagas
+// ==========================================
+
+export type UserRole = 'vos_adm' | 'sindico' | 'morador';
+
+export interface UserProfile {
+  uid: string;
+  nome: string;
+  email: string;
+  role: UserRole;
+  condominioId?: string;
+  condominioNome?: string;
+  unidade?: string; // Ex: "Bloco A - Apto 302"
+  whatsapp?: string; // Formato: 5541999999999
+  vagaVinculada?: string; // Ex: "G1-42"
+}
+
+// 5 Etapas do Funil Síndico (B2B Condominial)
+export type B2BLeadStage =
+  | 'lead_indicacao'
+  | 'proposta_enviada'
+  | 'assembleia_agendada'
+  | 'votacao_assembleia'
+  | 'implantacao_onboarding';
+
+export interface B2BLead {
+  id: string;
+  nomeCondominio: string;
+  cnpj?: string;
+  unidades: number;
+  bairroCidade: string;
+  sindicoNome: string;
+  sindicoWhatsapp: string;
+  stage: B2BLeadStage;
+  valorProposta?: number;
+  plano?: Plano;
+  complexidade?: Complexidade;
+  dataAssembleia?: string; // YYYY-MM-DD
+  followUpConselhoFeito?: boolean;
+  observacoes?: string;
+}
+
+// Vistoria Técnica de Entrada
+export interface ItemVistoria {
+  id: string;
+  condominioNome?: string;
+  area: 'Fachada' | 'Hidráulica/Bombas' | 'Elétrica' | 'Garagem' | 'Elevadores' | 'Áreas Comuns';
+  descricaoPassivo: string;
+  gravidade: 'Baixo' | 'Médio' | 'Crítico (Risco Civil)';
+  fotoUrl?: string;
+  acaoRecomendada: string;
+  dataRegistro?: string;
+}
+
+// Health Score & Customer Success
+export interface CondominioHealthMetrics {
+  id: string;
+  condominioId: string;
+  condominioNome: string;
+  inadimplenciaPercentual: number; // Capturado uCondo
+  chamadosAbertos: number;
+  diasRestantesMandato: number;
+  npsScore: number; // -100 a 100 ou 0 a 100
+}
+
+// Chatbot & Mediação de Ocorrências (API WhatsApp do Síndico: 1- Feedback, 2- Reclamação em 4 Passos, 3- Falar com Síndico)
+export interface ChamadoBot {
+  id: string;
+  condominioId: string;
+  tipo?: 'feedback' | 'reclamacao' | 'falar_sindico';
+  reclamanteUnidade: string;
+  reclamanteNome: string;
+  reclamanteWhatsapp?: string;
+  blocoDestino?: string;
+  numeroDestino?: string;
+  unidadeAcusada: string;
+  moradorAcusadoNome: string;
+  moradorAcusadoWhatsapp: string;
+  categoria:
+    | 'Barulho/Silêncio'
+    | 'Estacionamento'
+    | 'Obras fora de horário'
+    | 'Animais/Pets'
+    | 'Outros'
+    | 'Feedback/Sugestão'
+    | 'Atendimento Direto c/ Síndico';
+  relato: string;
+  evidenciaNome?: string;
+  evidenciaUrl?: string;
+  status: 'notificado_bot' | 'aguardando_sindico' | 'resolvido';
+  notificacaoWppEnviada: boolean;
+  precisaAtendimentoHumano: boolean;
+  criadoEm: string;
+}
+
+export interface SindicoBotConfig {
+  id: string;
+  condominioId: string;
+  condominioNome: string;
+  whatsappSindicoBot: string;
+  nomeAssistente: string;
+  apiStatus: 'conectado' | 'desconectado';
+  autoDisparoWpp: boolean;
+}
+
+// Agenda e Aluguel de Vagas
+export interface VagaDisponivel {
+  id: string;
+  condominioId: string;
+  numeroVaga: string;
+  proprietarioId: string;
+  proprietarioNome: string;
+  proprietarioUnidade: string;
+  proprietarioWhatsapp: string;
+  tipoModalidade: 'Aluguel' | 'Empréstimo Gratuito';
+  valorDiaria?: number;
+  dataInicio: string;
+  dataFim: string;
+  status: 'disponivel' | 'proposta_pendente' | 'ocupada';
+  propostaAtual?: {
+    solicitanteNome: string;
+    solicitanteUnidade: string;
+    solicitanteWhatsapp: string;
+    placaVeiculo: string;
+    mensagemProposta: string;
+  };
+}

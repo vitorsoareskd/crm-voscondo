@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Condominio } from '../../types';
 import { formatarMoeda, calcularSaudeCondominio } from '../../utils/pricingEngine';
-import { apiGetRelatoriosOrcamento, apiSaveRelatorioOrcamento, apiDeleteRelatorioOrcamento } from '../../services/api';
+import { subscribeToCollection, saveCollectionToFirestore } from '../../lib/firebase';
+import { RELATORIOS_ORCAMENTO_INICIAIS } from '../../data/initialData';
 import {
   FileText,
   Calculator,
@@ -816,38 +817,35 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
 
   // 2. Relatório Despesas State
   const [despesasOrdinarias, setDespesasOrdinarias] = useState<DespesaOrdinaria[]>([
-    { id: '1', descricao: 'Folha de Pagamento & Encargos', vencimentoReferencia: '05/08', valor: 4500.0 },
-    { id: '2', descricao: 'Energia Elétrica Áreas Comuns (COPEL)', vencimentoReferencia: '10/08', valor: 1250.0 },
-    { id: '3', descricao: 'Manutenção Elevadores & Portões', vencimentoReferencia: '15/08', valor: 880.0 },
-    { id: '4', descricao: 'Honorários Administradora (VOS)', vencimentoReferencia: '10/08', valor: 1450.0 },
-    { id: '5', descricao: 'Produtos de Limpeza & Consumíveis', vencimentoReferencia: '12/08', valor: 420.0 }
+    { id: '1', descricao: 'Honorários VOS CONDO', vencimentoReferencia: '10/09', valor: 342.90 },
+    { id: '2', descricao: 'Internet NIO', vencimentoReferencia: '10/09', valor: 135.40 },
+    { id: '3', descricao: 'Copel Energia', vencimentoReferencia: '10/09', valor: 145.07 },
+    { id: '4', descricao: 'Taxas Bancárias e Integração de Capital - sicredi', vencimentoReferencia: '', valor: 20.61 },
+    { id: '5', descricao: 'Seguro Predial Obrigatório', vencimentoReferencia: '10/09', valor: 147.00 }
   ]);
 
-  const [despesasExtraordinarias, setDespesasExtraordinarias] = useState<DespesaExtraordinaria[]>([
-    { id: 'e1', descricao: 'Reforma Portaria Remota (Parcela 03/10)', percentualRateio: 100, valor: 1200.0 },
-    { id: 'e2', descricao: 'Inspeção de Para-Raios e Laudo elétrico', percentualRateio: 100, valor: 650.0 }
-  ]);
+  const [despesasExtraordinarias, setDespesasExtraordinarias] = useState<DespesaExtraordinaria[]>([]);
 
   // Custos de Água e Saneamento
-  const [taxaMinimaAgua, setTaxaMinimaAgua] = useState<number>(600.0);
-  const [excedenteAguaTotal, setExcedenteAguaTotal] = useState<number>(340.0);
+  const [taxaMinimaAgua, setTaxaMinimaAgua] = useState<number>(917.28);
+  const [excedenteAguaTotal, setExcedenteAguaTotal] = useState<number>(457.63);
   const [escopoRateioAgua, setEscopoRateioAgua] = useState<'total_com_taxa_minima' | 'apenas_excedente'>('total_com_taxa_minima');
 
   // 3. Regras de Rateio e Fundos
   const [tipoCotaBasica, setTipoCotaBasica] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
   const [tipoRateioFundoReserva, setTipoRateioFundoReserva] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
   const [tipoDespesaExtra, setTipoDespesaExtra] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
-  const [tipoFundoPintura, setTipoFundoPintura] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
-  const [tipoFundoObras, setTipoFundoObras] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('fracao_ideal');
+  const [tipoFundoPintura, setTipoFundoPintura] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores' | string>('divisao_igual');
+  const [tipoFundoObras, setTipoFundoObras] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores' | string>('fracao_ideal');
   const [tipoRateioAgua, setTipoRateioAgua] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
-  const [tipoRateioTaxaMinAgua, setTipoRateioTaxaMinAgua] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
+  const [tipoRateioTaxaMinAgua, setTipoRateioTaxaMinAgua] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('divisao_igual');
   const [tipoRateioExcedente, setTipoRateioExcedente] = useState<'fracao_ideal' | 'divisao_igual' | 'moradores'>('moradores');
 
 
-  const [fundoReservaValor, setFundoReservaValor] = useState<number>(10); // 10% or R$ 50
-  const [fundoPinturaPorUnidade, setFundoPinturaPorUnidade] = useState<number>(25.0);
-  const [fundoObrasPorUnidade, setFundoObrasPorUnidade] = useState<number>(15.0);
-  const [taxaBoletoValor, setTaxaBoletoValor] = useState<number>(3.50);
+  const [fundoReservaValor, setFundoReservaValor] = useState<number>(10); // 10%
+  const [fundoPinturaPorUnidade, setFundoPinturaPorUnidade] = useState<number>(80.0);
+  const [fundoObrasPorUnidade, setFundoObrasPorUnidade] = useState<number>(0.0);
+  const [taxaBoletoValor, setTaxaBoletoValor] = useState<number>(2.00);
   const [vencimentoBoleto, setVencimentoBoleto] = useState<string>('10/08/2026');
 
   // Textos editáveis baseados nos templates
@@ -1298,57 +1296,30 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const [relatoriosSalvos, setRelatoriosSalvos] = useState<OrcamentoRelatorioSalvo[]>(() => {
     try {
       const saved = localStorage.getItem('vos_orcamentos_relatorios_salvos');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return RELATORIOS_ORCAMENTO_INICIAIS;
     } catch {
-      return [];
+      return RELATORIOS_ORCAMENTO_INICIAIS;
     }
   });
 
-  // ── Sincronização e Migração com SQLite em Tempo Real ───────────────────────
+  // ── Sincronização com Cloud Firestore em Tempo Real ───────────────────────
   useEffect(() => {
-    // 1. Carregar do SQLite
-    apiGetRelatoriosOrcamento()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setRelatoriosSalvos(data);
-        } else {
-          // Se o SQLite estiver vazio mas o localStorage local tiver relatórios, salva no SQLite!
-          try {
-            const local = localStorage.getItem('vos_orcamentos_relatorios_salvos');
-            const parsed = local ? JSON.parse(local) : [];
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              parsed.forEach((item) => apiSaveRelatorioOrcamento(item).catch(console.error));
-              setRelatoriosSalvos(parsed);
-            }
-          } catch (e) {
-            console.warn(e);
-          }
-        }
-      })
-      .catch((err) => console.error('Erro ao buscar relatórios do SQLite:', err));
-
-    // 2. Polling contínuo de sincronização a cada 4 segundos
-    const intervalId = setInterval(() => {
-      apiGetRelatoriosOrcamento()
-        .then((data) => {
-          if (Array.isArray(data)) {
-            setRelatoriosSalvos((prev) => {
-              if (prev.length !== data.length || JSON.stringify(prev) !== JSON.stringify(data)) {
-                return data;
-              }
-              return prev;
-            });
-          }
-        })
-        .catch(console.error);
-    }, 4000);
-
-    return () => clearInterval(intervalId);
+    const unsub = subscribeToCollection<OrcamentoRelatorioSalvo>(
+      'relatoriosOrcamento',
+      (data) => setRelatoriosSalvos(data),
+      RELATORIOS_ORCAMENTO_INICIAIS
+    );
+    return () => unsub();
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem('vos_orcamentos_relatorios_salvos', JSON.stringify(relatoriosSalvos));
+      saveCollectionToFirestore('relatoriosOrcamento', relatoriosSalvos);
     } catch (e) {
       console.warn("Erro ao persistir orçamentos salvos:", e);
     }
@@ -1650,7 +1621,6 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
     };
 
     setRelatoriosSalvos((prev) => [novoOrcamento, ...prev]);
-    apiSaveRelatorioOrcamento(novoOrcamento).catch((err) => console.error('Erro ao salvar relatório no SQLite:', err));
 
     setModalSalvarAberto(false);
     setMensagemGeracao(`✓ Orçamento "${novoOrcamento.titulo}" salvo com sucesso! Você pode consultá-lo na aba "Orçamentos & Relatórios Salvos".`);
@@ -1692,7 +1662,6 @@ export const RelatoriosSection: React.FC<RelatoriosSectionProps> = ({ condominio
   const handleExcluirOrcamento = (id: string, titulo: string) => {
     if (window.confirm(`Deseja realmente excluir o orçamento "${titulo}" dos relatórios salvos?`)) {
       setRelatoriosSalvos((prev) => prev.filter((item) => item.id !== id));
-      apiDeleteRelatorioOrcamento(id).catch((err) => console.error('Erro ao excluir relatório no SQLite:', err));
       if (orcamentoDetalhes?.id === id) {
         setOrcamentoDetalhes(null);
       }

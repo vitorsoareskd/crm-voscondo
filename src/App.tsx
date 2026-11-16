@@ -1,167 +1,221 @@
 import React, { useState, useEffect } from 'react';
-import { SERVICOS_EXTRAS_INICIAIS } from './data/initialData';
-import { loadFromStorage, saveToStorage, STORAGE_KEYS } from './utils/storage';
 import {
-  apiGetCondominios, apiGetFornecedores, apiGetInadimplentes,
-  apiGetTarefasGantt, apiGetTarefasEquipe, apiGetTransacoes,
-  apiGetProjecaoItems, apiGetPorquinhos,
-} from './services/api';
-import { Condominio, ServicoExtra, Inadimplente, TarefaGantt, TarefaEquipe, Fornecedor, Porquinho, TransacaoExtrato, ProjecaoItem } from './types';
+  CONDOMINIOS_INICIAIS,
+  SERVICOS_EXTRAS_INICIAIS,
+  INADIMPLENTES_INICIAIS,
+  TAREFAS_GANTT_INICIAIS,
+  TAREFAS_EQUIPE_INICIAIS,
+  FORNECEDORES_INICIAIS,
+  PORQUINHOS_INICIAIS,
+  TRANSACOES_EXTRATO_INICIAIS,
+  PROJECAO_ITEMS_INICIAIS,
+  RELATORIOS_ORCAMENTO_INICIAIS
+} from './data/initialData';
+import {
+  loadFromStorage,
+  saveToStorage,
+  STORAGE_KEYS,
+  clearAllAppData,
+  resetAllToInitialData
+} from './utils/storage';
+import {
+  subscribeToCollection,
+  saveCollectionToFirestore,
+  clearFirestoreCollection
+} from './lib/firebase';
+import { Condominio, ServicoExtra, Inadimplente, TarefaGantt, TarefaEquipe, Fornecedor, Porquinho, TransacaoExtrato, ProjecaoItem, UserProfile, UserRole } from './types';
 import { Header } from './components/Header';
 import { CRMModule } from './components/crm/CRMModule';
 import { ERPModule } from './components/erp/ERPModule';
 import { TreasuryModule } from './components/vostreasury/TreasuryModule';
-import { LoginScreen } from './components/auth/LoginScreen';
+import { LoginScreen, MOCK_PROFILES } from './components/auth/LoginScreen';
 
 export default function App() {
-  // Authentication — sempre exige tela de login no acesso
+  // Authentication State - Always require lock screen on initial app load / page link visit
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(MOCK_PROFILES.vos_adm);
+
+  // Clear any old persisted auth token from localStorage to guarantee lock screen on fresh access
+  // Exception: if a resident opens the direct WhatsApp Bot Self-Service link (?bot=1 or #bot), open the Chatbot directly
+  const [isDirectBotMode] = useState<boolean>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('bot') === '1' || window.location.hash === '#bot';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     localStorage.removeItem('vos_authenticated');
-    // Garante flag de dados limpos (sem dados fictícios)
-    localStorage.setItem('vos_data_cleared', 'true');
-  }, []);
+    if (isDirectBotMode) {
+      setCurrentUser(MOCK_PROFILES.morador);
+      setIsAuthenticated(true);
+      setActiveTab('erp');
+      setSubTab('chatbot');
+    }
+  }, [isDirectBotMode]);
 
   // Navigation
   const [activeTab, setActiveTab] = useState<'crm' | 'erp' | 'treasury'>('crm');
   const [subTab, setSubTab] = useState<string>('orcamentos');
 
-  // ── Estado Central com Cache LocalStorage + Sincronização SQLite ─────────
-  const [condominios, setCondominios] = useState<Condominio[]>(() =>
-    loadFromStorage(STORAGE_KEYS.CONDOMINIOS, [])
-  );
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>(() =>
-    loadFromStorage(STORAGE_KEYS.FORNECEDORES, [])
-  );
-  const [inadimplentes, setInadimplentes] = useState<Inadimplente[]>(() =>
-    loadFromStorage(STORAGE_KEYS.INADIMPLENTES, [])
-  );
-  const [tarefasGantt, setTarefasGantt] = useState<TarefaGantt[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TAREFAS_GANTT, [])
-  );
-  const [tarefasEquipe, setTarefasEquipe] = useState<TarefaEquipe[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TAREFAS_EQUIPE, [])
-  );
-  const [transacoesExtrato, setTransacoesExtrato] = useState<TransacaoExtrato[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, [])
-  );
-  const [projecaoItems, setProjecaoItems] = useState<ProjecaoItem[]>(() =>
-    loadFromStorage(STORAGE_KEYS.PROJECAO_ITEMS, [])
-  );
-  const [porquinhos, setPorquinhos] = useState<Porquinho[]>(() =>
-    loadFromStorage(STORAGE_KEYS.PORQUINHOS, [])
-  );
+  const handleLoginSuccess = (user: UserProfile) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    if (user.role === 'morador') {
+      setActiveTab('erp');
+      setSubTab('vagas');
+    } else if (user.role === 'sindico') {
+      setActiveTab('erp');
+      setSubTab('cadastro');
+    } else {
+      setActiveTab('crm');
+      setSubTab('orcamentos');
+    }
+  };
 
-  // Serviços extras e agenda: dados de catálogo e calendário
+  const handleSwitchRole = (role: UserRole) => {
+    const newProfile = MOCK_PROFILES[role];
+    setCurrentUser(newProfile);
+    if (role === 'morador') {
+      setActiveTab('erp');
+      setSubTab('vagas');
+    } else if (role === 'sindico') {
+      setActiveTab('erp');
+      if (!['cadastro', 'cs_inadimplencia', 'cs_sla', 'cs_mandato', 'cs_nps', 'chatbot', 'vagas', 'gantt', 'tarefas', 'fornecedores', 'relatorios'].includes(subTab)) {
+        setSubTab('cadastro');
+      }
+    }
+  };
+
+  // Shared Central State with LocalStorage Persistence & Firestore Sync
+  const [condominios, setCondominios] = useState<Condominio[]>(() =>
+    loadFromStorage(STORAGE_KEYS.CONDOMINIOS, CONDOMINIOS_INICIAIS)
+  );
   const [servicosExtras, setServicosExtras] = useState<ServicoExtra[]>(() =>
     loadFromStorage(STORAGE_KEYS.SERVICOS_EXTRAS, SERVICOS_EXTRAS_INICIAIS)
   );
-  const [agenda, setAgenda] = useState<any[]>(() =>
-    loadFromStorage(STORAGE_KEYS.AGENDA, [])
+  const [inadimplentes, setInadimplentes] = useState<Inadimplente[]>(() =>
+    loadFromStorage(STORAGE_KEYS.INADIMPLENTES, INADIMPLENTES_INICIAIS)
+  );
+  const [tarefasGantt, setTarefasGantt] = useState<TarefaGantt[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TAREFAS_GANTT, TAREFAS_GANTT_INICIAIS)
+  );
+  const [tarefasEquipe, setTarefasEquipe] = useState<TarefaEquipe[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TAREFAS_EQUIPE, TAREFAS_EQUIPE_INICIAIS)
+  );
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>(() =>
+    loadFromStorage(STORAGE_KEYS.FORNECEDORES, FORNECEDORES_INICIAIS)
+  );
+  const [porquinhos, setPorquinhos] = useState<Porquinho[]>(() =>
+    loadFromStorage(STORAGE_KEYS.PORQUINHOS, PORQUINHOS_INICIAIS)
+  );
+  const [transacoesExtrato, setTransacoesExtrato] = useState<TransacaoExtrato[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, TRANSACOES_EXTRATO_INICIAIS)
+  );
+  const [projecaoItems, setProjecaoItems] = useState<ProjecaoItem[]>(() =>
+    loadFromStorage(STORAGE_KEYS.PROJECAO_ITEMS, PROJECAO_ITEMS_INICIAIS)
   );
 
-  // Função auxiliar para atualizar o estado apenas se houver mudança real no banco,
-  // preservando a igualdade referencial e evitando re-renders ou perda de foco em formulários.
-  const updateIfChanged = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, nextData: T[]) => {
-    setter((prev) => {
-      if (prev.length !== nextData.length || JSON.stringify(prev) !== JSON.stringify(nextData)) {
-        return nextData;
-      }
-      return prev;
-    });
-  };
+  // One-time migration: import real SQLite database records and purge any fictional/mock records
+  useEffect(() => {
+    const isRealDataMigrated = localStorage.getItem('vos_real_db_imported_v3') === 'true';
+    if (!isRealDataMigrated) {
+      localStorage.removeItem('vos_data_cleared');
+      // Purge fictional module caches in localStorage
+      localStorage.setItem('vos_b2b_leads', JSON.stringify([]));
+      localStorage.setItem('vos_vistorias_entrada', JSON.stringify([]));
+      localStorage.setItem('vos_health_score', JSON.stringify([]));
+      localStorage.setItem('vos_chamados_bot', JSON.stringify([]));
+      localStorage.setItem('vos_vagas_estacionamento', JSON.stringify([]));
 
-  // ── Sincronizador com o Banco SQLite em Tempo Real ─────────────────────────
-  const sincronizarComBanco = React.useCallback(() => {
-    apiGetCondominios()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setCondominios, data as Condominio[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar condomínios do SQLite:', err));
+      // Load real database records into localStorage and state
+      resetAllToInitialData();
+      setCondominios(CONDOMINIOS_INICIAIS);
+      setServicosExtras(SERVICOS_EXTRAS_INICIAIS);
+      setInadimplentes(INADIMPLENTES_INICIAIS);
+      setTarefasGantt(TAREFAS_GANTT_INICIAIS);
+      setTarefasEquipe(TAREFAS_EQUIPE_INICIAIS);
+      setFornecedores(FORNECEDORES_INICIAIS);
+      setPorquinhos(PORQUINHOS_INICIAIS);
+      setTransacoesExtrato(TRANSACOES_EXTRATO_INICIAIS);
+      setProjecaoItems(PROJECAO_ITEMS_INICIAIS);
 
-    apiGetFornecedores()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setFornecedores, data as Fornecedor[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar fornecedores do SQLite:', err));
-
-    apiGetInadimplentes()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setInadimplentes, data as Inadimplente[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar inadimplentes do SQLite:', err));
-
-    apiGetTarefasGantt()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setTarefasGantt, data as TarefaGantt[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar tarefas Gantt do SQLite:', err));
-
-    apiGetTarefasEquipe()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setTarefasEquipe, data as TarefaEquipe[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar tarefas equipe do SQLite:', err));
-
-    apiGetTransacoes()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setTransacoesExtrato, data as TransacaoExtrato[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar transações do SQLite:', err));
-
-    apiGetProjecaoItems()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setProjecaoItems, data as ProjecaoItem[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar projeções do SQLite:', err));
-
-    apiGetPorquinhos()
-      .then((data) => {
-        if (Array.isArray(data)) updateIfChanged(setPorquinhos, data as Porquinho[]);
-      })
-      .catch((err) => console.error('Erro ao sincronizar porquinhos do SQLite:', err));
+      localStorage.setItem('vos_real_db_imported_v3', 'true');
+    }
   }, []);
 
-  // 1. Executa na montagem inicial
-  // 2. Executa automaticamente a cada 4 segundos (polling contínuo em tempo real)
-  // 3. Executa imediatamente ao alternar de volta para a aba (window focus / visibility change)
+  // Firestore Subscriptions & Real-Time Sync
   useEffect(() => {
-    sincronizarComBanco();
-
-    const intervalId = setInterval(sincronizarComBanco, 4000);
-
-    const handleFocus = () => {
-      sincronizarComBanco();
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        sincronizarComBanco();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibility);
+    const unsubCondominios = subscribeToCollection<Condominio>('condominios', (data) => setCondominios(data), CONDOMINIOS_INICIAIS);
+    const unsubServicos = subscribeToCollection<ServicoExtra>('servicosExtras', (data) => setServicosExtras(data), SERVICOS_EXTRAS_INICIAIS);
+    const unsubInadimplentes = subscribeToCollection<Inadimplente>('inadimplentes', (data) => setInadimplentes(data), INADIMPLENTES_INICIAIS);
+    const unsubTarefasGantt = subscribeToCollection<TarefaGantt>('tarefasGantt', (data) => setTarefasGantt(data), TAREFAS_GANTT_INICIAIS);
+    const unsubTarefasEquipe = subscribeToCollection<TarefaEquipe>('tarefasEquipe', (data) => setTarefasEquipe(data), TAREFAS_EQUIPE_INICIAIS);
+    const unsubFornecedores = subscribeToCollection<Fornecedor>('fornecedores', (data) => setFornecedores(data), FORNECEDORES_INICIAIS);
+    const unsubPorquinhos = subscribeToCollection<Porquinho>('porquinhos', (data) => setPorquinhos(data), PORQUINHOS_INICIAIS);
+    const unsubTransacoes = subscribeToCollection<TransacaoExtrato>('transacoesExtrato', (data) => setTransacoesExtrato(data), TRANSACOES_EXTRATO_INICIAIS);
+    const unsubProjecao = subscribeToCollection<ProjecaoItem>('projecaoItems', (data) => setProjecaoItems(data), PROJECAO_ITEMS_INICIAIS);
 
     return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
+      unsubCondominios();
+      unsubServicos();
+      unsubInadimplentes();
+      unsubTarefasGantt();
+      unsubTarefasEquipe();
+      unsubFornecedores();
+      unsubPorquinhos();
+      unsubTransacoes();
+      unsubProjecao();
     };
-  }, [sincronizarComBanco]);
+  }, []);
 
-  // Sincronizar alterações no localStorage como cache rápido
-  useEffect(() => { saveToStorage(STORAGE_KEYS.CONDOMINIOS, condominios); }, [condominios]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.FORNECEDORES, fornecedores); }, [fornecedores]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.INADIMPLENTES, inadimplentes); }, [inadimplentes]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.TAREFAS_GANTT, tarefasGantt); }, [tarefasGantt]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.TAREFAS_EQUIPE, tarefasEquipe); }, [tarefasEquipe]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, transacoesExtrato); }, [transacoesExtrato]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, projecaoItems); }, [projecaoItems]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.PORQUINHOS, porquinhos); }, [porquinhos]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.AGENDA, agenda); }, [agenda]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, servicosExtras); }, [servicosExtras]);
+  // Sync state changes to LocalStorage and direct to Cloud Firestore
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.CONDOMINIOS, condominios);
+    saveCollectionToFirestore('condominios', condominios);
+  }, [condominios]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, servicosExtras);
+    saveCollectionToFirestore('servicosExtras', servicosExtras);
+  }, [servicosExtras]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.INADIMPLENTES, inadimplentes);
+    saveCollectionToFirestore('inadimplentes', inadimplentes);
+  }, [inadimplentes]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.TAREFAS_GANTT, tarefasGantt);
+    saveCollectionToFirestore('tarefasGantt', tarefasGantt);
+  }, [tarefasGantt]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.TAREFAS_EQUIPE, tarefasEquipe);
+    saveCollectionToFirestore('tarefasEquipe', tarefasEquipe);
+  }, [tarefasEquipe]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.FORNECEDORES, fornecedores);
+    saveCollectionToFirestore('fornecedores', fornecedores);
+  }, [fornecedores]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.PORQUINHOS, porquinhos);
+    saveCollectionToFirestore('porquinhos', porquinhos);
+  }, [porquinhos]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, transacoesExtrato);
+    saveCollectionToFirestore('transacoesExtrato', transacoesExtrato);
+  }, [transacoesExtrato]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, projecaoItems);
+    saveCollectionToFirestore('projecaoItems', projecaoItems);
+  }, [projecaoItems]);
 
   const handleLogout = () => {
     localStorage.removeItem('vos_authenticated');
@@ -170,38 +224,60 @@ export default function App() {
     setIsAuthenticated(false);
   };
 
-  // Limpar dados: recarrega do banco após limpar estado local
   const handleClearData = async () => {
+    clearAllAppData();
     setCondominios([]);
-    setFornecedores([]);
+    setServicosExtras([]);
     setInadimplentes([]);
     setTarefasGantt([]);
     setTarefasEquipe([]);
+    setFornecedores([]);
     setPorquinhos([]);
     setTransacoesExtrato([]);
     setProjecaoItems([]);
-    setServicosExtras([]);
-    setAgenda([]);
-    localStorage.setItem(STORAGE_KEYS.AGENDA, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.SERVICOS_EXTRAS, JSON.stringify([]));
-    // Recarregar condomínios do banco (dados reais)
-    try {
-      const data = await apiGetCondominios();
-      setCondominios(data as Condominio[]);
-    } catch (err) {
-      console.error('Erro ao recarregar condominios:', err);
-    }
+
+    await Promise.all([
+      clearFirestoreCollection('condominios'),
+      clearFirestoreCollection('servicosExtras'),
+      clearFirestoreCollection('inadimplentes'),
+      clearFirestoreCollection('tarefasGantt'),
+      clearFirestoreCollection('tarefasEquipe'),
+      clearFirestoreCollection('fornecedores'),
+      clearFirestoreCollection('porquinhos'),
+      clearFirestoreCollection('transacoesExtrato'),
+      clearFirestoreCollection('projecaoItems'),
+    ]);
   };
 
-  // Restaurar apenas serviços extras padrão (não tem dados fictícios de condomínios)
   const handleResetData = async () => {
+    resetAllToInitialData();
+    setCondominios(CONDOMINIOS_INICIAIS);
     setServicosExtras(SERVICOS_EXTRAS_INICIAIS);
-    saveToStorage(STORAGE_KEYS.SERVICOS_EXTRAS, SERVICOS_EXTRAS_INICIAIS);
+    setInadimplentes(INADIMPLENTES_INICIAIS);
+    setTarefasGantt(TAREFAS_GANTT_INICIAIS);
+    setTarefasEquipe(TAREFAS_EQUIPE_INICIAIS);
+    setFornecedores(FORNECEDORES_INICIAIS);
+    setPorquinhos(PORQUINHOS_INICIAIS);
+    setTransacoesExtrato(TRANSACOES_EXTRATO_INICIAIS);
+    setProjecaoItems(PROJECAO_ITEMS_INICIAIS);
+
+    await Promise.all([
+      saveCollectionToFirestore('condominios', CONDOMINIOS_INICIAIS),
+      saveCollectionToFirestore('servicosExtras', SERVICOS_EXTRAS_INICIAIS),
+      saveCollectionToFirestore('inadimplentes', INADIMPLENTES_INICIAIS),
+      saveCollectionToFirestore('tarefasGantt', TAREFAS_GANTT_INICIAIS),
+      saveCollectionToFirestore('tarefasEquipe', TAREFAS_EQUIPE_INICIAIS),
+      saveCollectionToFirestore('fornecedores', FORNECEDORES_INICIAIS),
+      saveCollectionToFirestore('porquinhos', PORQUINHOS_INICIAIS),
+      saveCollectionToFirestore('transacoesExtrato', TRANSACOES_EXTRATO_INICIAIS),
+      saveCollectionToFirestore('projecaoItems', PROJECAO_ITEMS_INICIAIS),
+      saveCollectionToFirestore('relatoriosOrcamento', RELATORIOS_ORCAMENTO_INICIAIS),
+    ]);
   };
 
   // Render Lock Screen if not authenticated
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
@@ -212,6 +288,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         subTab={subTab}
         setSubTab={setSubTab}
+        currentUser={currentUser}
+        onSwitchRole={handleSwitchRole}
         onLogout={handleLogout}
         onClearData={handleClearData}
         onResetData={handleResetData}
@@ -226,6 +304,7 @@ export default function App() {
             servicosExtras={servicosExtras}
             setServicosExtras={setServicosExtras}
             subTab={subTab}
+            setSubTab={setSubTab}
           />
         )}
 
@@ -241,9 +320,8 @@ export default function App() {
             setTarefasEquipe={setTarefasEquipe}
             fornecedores={fornecedores}
             setFornecedores={setFornecedores}
-            agenda={agenda}
-            setAgenda={setAgenda}
             subTab={subTab}
+            currentUser={currentUser}
           />
         )}
 
@@ -263,7 +341,6 @@ export default function App() {
             subTab={subTab}
           />
         )}
-
       </main>
 
       {/* Footer */}

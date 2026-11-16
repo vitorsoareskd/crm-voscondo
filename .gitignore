@@ -2,10 +2,8 @@ node_modules/
 build/
 dist/
 coverage/
+.firebase/
 .DS_Store
 *.log
 .env*
 !.env.example
-*.sqlite
-*.sqlite3
-backups/

@@ -1,1 +1,6 @@
-{"name":"VOS Condomínios - CRM \u0026 ERP","description":"Sistema integrado de Gestão Comercial (CRM), Operação Condominial (ERP) e Tesouraria para VOS Condomínios.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
+{
+  "name": "VOS Condomínios - CRM & ERP",
+  "description": "Sistema integrado de Gestão Comercial (CRM), Operação Condominial (ERP) e Tesouraria para VOS Condomínios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

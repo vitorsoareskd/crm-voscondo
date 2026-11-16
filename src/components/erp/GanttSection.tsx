@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { TarefaGantt, Condominio } from '../../types';
-import { apiSaveTarefaGantt, apiUpdateTarefaGantt, apiDeleteTarefaGantt } from '../../services/api';
 import { Calendar, Plus, Clock, CheckCircle2, AlertTriangle, Layers, Printer, FileText, Download, Check, X, Building2, Sparkles, BarChart3, ShieldCheck, Trash2 } from 'lucide-react';
 import { VosLogo } from '../VosLogo';
 
@@ -18,7 +17,6 @@ export const GanttSection: React.FC<GanttSectionProps> = ({ tarefas, setTarefas,
 
   const handleConfirmExcluir = () => {
     if (itemParaExcluir) {
-      apiDeleteTarefaGantt(itemParaExcluir.id).catch((err) => console.error('Erro ao excluir tarefa Gantt do SQLite:', err));
       setTarefas((prev) => prev.filter((t) => t.id !== itemParaExcluir.id));
       setItemParaExcluir(null);
     }
@@ -52,14 +50,13 @@ export const GanttSection: React.FC<GanttSectionProps> = ({ tarefas, setTarefas,
     };
 
     setTarefas([novaTarefa, ...tarefas]);
-    apiSaveTarefaGantt(novaTarefa).catch((err) => console.error('Erro ao salvar tarefa Gantt no SQLite:', err));
     setTitulo('');
     setResponsavel('');
   };
 
   const handleUpdateProgresso = (id: string, novoProgresso: number) => {
-    setTarefas((prev) => {
-      const updated = prev.map((t) => {
+    setTarefas((prev) =>
+      prev.map((t) => {
         if (t.id === id) {
           let status = t.status;
           if (novoProgresso === 100) status = 'Concluído';
@@ -67,13 +64,8 @@ export const GanttSection: React.FC<GanttSectionProps> = ({ tarefas, setTarefas,
           return { ...t, progresso: novoProgresso, status };
         }
         return t;
-      });
-      const target = updated.find((t) => t.id === id);
-      if (target) {
-        apiUpdateTarefaGantt(id, target).catch((err) => console.error('Erro ao atualizar tarefa Gantt no SQLite:', err));
-      }
-      return updated;
-    });
+      })
+    );
   };
 
   const tarefasFiltradas = tarefas.filter(

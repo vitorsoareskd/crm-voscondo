@@ -7,7 +7,8 @@ import {
   FORNECEDORES_INICIAIS,
   PORQUINHOS_INICIAIS,
   TRANSACOES_EXTRATO_INICIAIS,
-  PROJECAO_ITEMS_INICIAIS
+  PROJECAO_ITEMS_INICIAIS,
+  RELATORIOS_ORCAMENTO_INICIAIS
 } from '../data/initialData';
 
 // Generic loader with fallback to initial data
@@ -16,9 +17,21 @@ export function loadFromStorage<T>(key: string, fallback: T): T {
     const isCleared = localStorage.getItem('vos_data_cleared') === 'true';
     const stored = localStorage.getItem(key);
     if (stored) {
-      return JSON.parse(stored) as T;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(fallback)) {
+        if (Array.isArray(parsed)) {
+          const validItems = parsed.filter((item) => item && typeof item === 'object');
+          // If local storage has an empty array (from previous clear) and user has not explicitly cleared data, restore real fallback data
+          if (validItems.length === 0 && fallback.length > 0 && !isCleared) {
+            return fallback;
+          }
+          return validItems as unknown as T;
+        }
+        return fallback;
+      }
+      return (parsed ?? fallback) as T;
     }
-    if (isCleared) {
+    if (isCleared && Array.isArray(fallback)) {
       return [] as unknown as T;
     }
   } catch (error) {
@@ -47,8 +60,7 @@ export const STORAGE_KEYS = {
   PORQUINHOS: 'vos_porquinhos',
   TRANSACOES_EXTRATO: 'vos_transacoes_extrato',
   PROJECAO_ITEMS: 'vos_projecao_items',
-  AGENDA: 'vos_agenda',
-  GOOGLE_CONFIG: 'vos_google_config',
+  RELATORIOS_ORCAMENTO: 'vos_relatorios_orcamento',
 };
 
 // Function to clear all application data (blank state)
@@ -59,7 +71,7 @@ export function clearAllAppData(): void {
   });
 }
 
-// Function to reset all data back to demo defaults
+// Function to reset all data back to real database defaults
 export function resetAllToInitialData(): void {
   localStorage.removeItem('vos_data_cleared');
   saveToStorage(STORAGE_KEYS.CONDOMINIOS, CONDOMINIOS_INICIAIS);
@@ -71,5 +83,5 @@ export function resetAllToInitialData(): void {
   saveToStorage(STORAGE_KEYS.PORQUINHOS, PORQUINHOS_INICIAIS);
   saveToStorage(STORAGE_KEYS.TRANSACOES_EXTRATO, TRANSACOES_EXTRATO_INICIAIS);
   saveToStorage(STORAGE_KEYS.PROJECAO_ITEMS, PROJECAO_ITEMS_INICIAIS);
-  saveToStorage(STORAGE_KEYS.AGENDA, []);
+  saveToStorage(STORAGE_KEYS.RELATORIOS_ORCAMENTO, RELATORIOS_ORCAMENTO_INICIAIS);
 }

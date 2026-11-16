@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { Building2, Calculator, ShieldCheck, Wallet, PieChart, Users, CheckSquare, Layers, Cpu, LogOut, UserCheck, Trash2, RotateCcw, Database } from 'lucide-react';
+import { Building2, Calculator, ShieldCheck, Wallet, PieChart, Users, CheckSquare, Layers, Cpu, LogOut, UserCheck, Trash2, RotateCcw, Database, Car, Bot, Activity, Kanban, Percent, Clock, Award, ThumbsUp } from 'lucide-react';
 import { VosLogo } from './VosLogo';
+import { UserProfile, UserRole } from '../types';
 
 interface HeaderProps {
   activeTab: 'crm' | 'erp' | 'treasury';
   setActiveTab: (tab: 'crm' | 'erp' | 'treasury') => void;
   subTab: string;
   setSubTab: (subTab: string) => void;
+  currentUser?: UserProfile;
+  onSwitchRole?: (role: UserRole) => void;
   onLogout?: () => void;
   onClearData?: () => void;
   onResetData?: () => void;
@@ -17,12 +20,15 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   subTab,
   setSubTab,
+  currentUser,
+  onSwitchRole,
   onLogout,
   onClearData,
   onResetData
 }) => {
   const [showDataModal, setShowDataModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const role = currentUser?.role || 'vos_adm';
 
   const handleExecuteClear = async () => {
     if (window.confirm('Tem certeza que deseja zerar todos os dados de teste para usar o sistema em branco?')) {
@@ -59,51 +65,66 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Logo and Slogan */}
         <VosLogo variant="header" onDarkBg={true} size="md" />
 
-        {/* Right Section: Contacts + Logged User / Logout */}
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="hidden lg:flex items-center gap-6 text-xs text-emerald-200/90 border-r border-emerald-800/60 pr-6">
-            <div>
-              <span className="block text-emerald-400 text-[10px] uppercase tracking-wider font-bold">CNPJ Matriz</span>
-              <span className="font-mono font-medium text-white">66.072.162/0001-43</span>
+        {/* Right Section: Contacts + Role Switcher + Logged User / Logout */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          {/* Quick RBAC Profile Switcher */}
+          {onSwitchRole && (
+            <div className="flex items-center bg-[#142618] border border-[#2d5a32] p-1 rounded-xl text-[11px]">
+              <button
+                type="button"
+                onClick={() => onSwitchRole('vos_adm')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  role === 'vos_adm' ? 'bg-amber-500 text-slate-950' : 'text-emerald-200 hover:text-white'
+                }`}
+              >
+                VOS Adm
+              </button>
+              <button
+                type="button"
+                onClick={() => onSwitchRole('sindico')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  role === 'sindico' ? 'bg-amber-500 text-slate-950' : 'text-emerald-200 hover:text-white'
+                }`}
+              >
+                Síndico
+              </button>
+              <button
+                type="button"
+                onClick={() => onSwitchRole('morador')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  role === 'morador' ? 'bg-amber-500 text-slate-950' : 'text-emerald-200 hover:text-white'
+                }`}
+              >
+                Morador
+              </button>
             </div>
-            <div>
-              <span className="block text-emerald-400 text-[10px] uppercase tracking-wider font-bold">Atendimento</span>
-              <span className="font-mono font-medium text-white">(41) 93300-0513</span>
-            </div>
-            <div>
-              <span className="block text-emerald-400 text-[10px] uppercase tracking-wider font-bold">Cidade</span>
-              <span className="font-medium text-white">Curitiba / PR</span>
-            </div>
-          </div>
+          )}
 
-          {/* Live Sync Status Indicator */}
-          <div 
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 font-medium shadow-xs"
-            title="Conexão em Tempo Real com SQLite: atualizações sincronizadas automaticamente"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="hidden sm:inline text-[11px] font-semibold text-emerald-200">Auto-Sync Ativo</span>
-          </div>
-
-          {/* Data Actions Menu Button */}
-          <button
-            onClick={() => setShowDataModal(true)}
-            className="px-3 py-1.5 bg-[#142618] hover:bg-[#203c26] text-emerald-200 border border-[#2d5a32] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-            title="Gerenciar Dados do Sistema"
-          >
-            <Database className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Dados & Banco</span>
-          </button>
+          {/* Data Actions Menu Button (VOS Adm) */}
+          {role === 'vos_adm' && (
+            <button
+              onClick={() => setShowDataModal(true)}
+              className="px-3 py-1.5 bg-[#142618] hover:bg-[#203c26] text-emerald-200 border border-[#2d5a32] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Gerenciar Dados do Sistema"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Dados & Banco</span>
+            </button>
+          )}
 
           {/* User Session & Logout Button */}
           <div className="flex items-center gap-3 bg-[#142618] border border-[#2d5a32] px-3 py-1.5 rounded-xl">
             <div className="flex items-center gap-2">
-              <span className="p-1 bg-emerald-950 text-emerald-400 rounded-lg">
+              <span className="p-1 bg-emerald-950 text-amber-400 rounded-lg">
                 <UserCheck className="w-4 h-4" />
               </span>
               <div className="text-left">
-                <span className="block text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Usuário Logado</span>
-                <span className="text-xs font-semibold text-white">adm@voscondo.com</span>
+                <span className="block text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                  {role === 'vos_adm' ? 'Perfil: VOS Adm' : role === 'sindico' ? 'Perfil: Síndico' : 'Perfil: Morador'}
+                </span>
+                <span className="text-xs font-semibold text-white">
+                  {currentUser?.nome || 'adm@voscondo.com'}
+                </span>
               </div>
             </div>
             {onLogout && (
@@ -122,29 +143,31 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Main Module Tabs */}
       <div className="bg-[#142618] border-t border-[#244528] px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-start py-1">
+        <div className="max-w-7xl mx-auto flex items-center justify-start py-1 overflow-x-auto">
           <nav className="flex space-x-1 sm:space-x-2" aria-label="Tabs">
-            {/* CRM Tab */}
-            <button
-              onClick={() => {
-                setActiveTab('crm');
-                setSubTab('orcamentos');
-              }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                activeTab === 'crm'
-                  ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
-                  : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
-              }`}
-            >
-              <Calculator className="w-4 h-4 text-emerald-700" />
-              <span>Gestão Comercial (CRM)</span>
-            </button>
+            {/* CRM Tab (Somente VOS Adm) */}
+            {role === 'vos_adm' && (
+              <button
+                onClick={() => {
+                  setActiveTab('crm');
+                  setSubTab('orcamentos');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                  activeTab === 'crm'
+                    ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
+                    : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
+                }`}
+              >
+                <Calculator className="w-4 h-4 text-emerald-700" />
+                <span>Gestão Comercial (CRM)</span>
+              </button>
+            )}
 
-            {/* ERP Tab */}
+            {/* ERP Tab (Todos os perfis, com sub-abas adaptadas ao perfil) */}
             <button
               onClick={() => {
                 setActiveTab('erp');
-                setSubTab('cadastro');
+                setSubTab(role === 'morador' ? 'vagas' : 'cadastro');
               }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'erp'
@@ -153,41 +176,44 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Building2 className="w-4 h-4 text-emerald-700" />
-              <span>Controle (ERP)</span>
+              <span>{role === 'morador' ? 'Portal do Condômino' : 'Controle & Operação (ERP)'}</span>
             </button>
 
-            {/* Treasury / Saúde VOS Tab */}
-            <button
-              onClick={() => {
-                setActiveTab('treasury');
-                setSubTab('saude');
-              }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                activeTab === 'treasury' && subTab !== 'ucondo'
-                  ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
-                  : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-700" />
-              <span>Saúde VOS</span>
-            </button>
+            {/* Treasury / Saúde VOS Tab (VOS Adm) */}
+            {role === 'vos_adm' && (
+              <>
+                <button
+                  onClick={() => {
+                    setActiveTab('treasury');
+                    setSubTab('saude');
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                    activeTab === 'treasury' && subTab !== 'ucondo'
+                      ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
+                      : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  <span>Saúde VOS</span>
+                </button>
 
-            {/* API Tab (Aba de cima ao lado de Saúde VOS) */}
-            <button
-              onClick={() => {
-                setActiveTab('treasury');
-                setSubTab('ucondo');
-              }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                activeTab === 'treasury' && subTab === 'ucondo'
-                  ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
-                  : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
-              }`}
-            >
-              <Cpu className="w-4 h-4 text-emerald-700" />
-              <span>API</span>
-            </button>
-
+                {/* API Tab */}
+                <button
+                  onClick={() => {
+                    setActiveTab('treasury');
+                    setSubTab('ucondo');
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                    activeTab === 'treasury' && subTab === 'ucondo'
+                      ? 'bg-[#f8faf6] text-[#1c3220] shadow-sm font-bold'
+                      : 'text-emerald-200 hover:text-white hover:bg-[#1e3b23]'
+                  }`}
+                >
+                  <Cpu className="w-4 h-4 text-emerald-700" />
+                  <span>API</span>
+                </button>
+              </>
+            )}
           </nav>
         </div>
       </div>
@@ -206,7 +232,18 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 <Calculator className="w-3.5 h-3.5" />
-                <span>Calculadora & Kanban</span>
+                <span>1.1 Pré-Cadastro & Simulador</span>
+              </button>
+              <button
+                onClick={() => setSubTab('funil_b2b')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  subTab === 'funil_b2b'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                }`}
+              >
+                <Kanban className="w-3.5 h-3.5" />
+                <span>Kanban</span>
               </button>
               <button
                 onClick={() => setSubTab('extras')}
@@ -224,57 +261,134 @@ export const Header: React.FC<HeaderProps> = ({
 
           {activeTab === 'erp' && (
             <div className="flex items-center gap-2 overflow-x-auto">
+              {role !== 'morador' && (
+                <>
+                  <button
+                    onClick={() => setSubTab('cadastro')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'cadastro'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                    }`}
+                  >
+                    <span>Perfil de Clientes</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('cs_inadimplencia')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'cs_inadimplencia'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'bg-[#1b3320] text-amber-300 hover:text-white hover:bg-[#25482e] border border-amber-500/40'
+                    }`}
+                  >
+                    <Percent className="w-3.5 h-3.5" />
+                    <span>Inadimplência (uCondo)</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('cs_sla')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'cs_sla'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'bg-[#1b3320] text-amber-300 hover:text-white hover:bg-[#25482e] border border-amber-500/40'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>SLA de Chamados</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('cs_mandato')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'cs_mandato'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'bg-[#1b3320] text-amber-300 hover:text-white hover:bg-[#25482e] border border-amber-500/40'
+                    }`}
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>Mandato do Síndico</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('cs_nps')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'cs_nps'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'bg-[#1b3320] text-amber-300 hover:text-white hover:bg-[#25482e] border border-amber-500/40'
+                    }`}
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                    <span>PULSE VOS</span>
+                  </button>
+                </>
+              )}
+
+              {/* Disponível para VOS Adm, Síndico e Morador */}
               <button
-                onClick={() => setSubTab('cadastro')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  subTab === 'cadastro'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                onClick={() => setSubTab('chatbot')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  subTab === 'chatbot'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'bg-[#1b3320] text-amber-300 hover:text-white hover:bg-[#25482e] border border-amber-500/40'
                 }`}
               >
-                <span>Perfil de Clientes</span>
-              </button>
-              <button
-                onClick={() => setSubTab('gantt')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  subTab === 'gantt'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
-                }`}
-              >
-                <span>Cronograma Gantt</span>
-              </button>
-              <button
-                onClick={() => setSubTab('tarefas')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  subTab === 'tarefas'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
-                }`}
-              >
-                <span>Agenda</span>
-              </button>
-              <button
-                onClick={() => setSubTab('fornecedores')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  subTab === 'fornecedores'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
-                }`}
-              >
-                <span>Fornecedores</span>
-              </button>
-              <button
-                onClick={() => setSubTab('relatorios')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  subTab === 'relatorios'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
-                }`}
-              >
-                <span>Relatórios</span>
+                <Bot className="w-3.5 h-3.5" />
+                <span>Chatbot Síndico</span>
               </button>
 
+              <button
+                onClick={() => setSubTab('vagas')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  subTab === 'vagas'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'bg-[#1b3320] text-amber-300 hover:text-white hover:bg-[#25482e] border border-amber-500/40'
+                }`}
+              >
+                <Car className="w-3.5 h-3.5" />
+                <span>Vagas de Garagem</span>
+              </button>
+
+              {role !== 'morador' && (
+                <>
+                  <button
+                    onClick={() => setSubTab('gantt')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'gantt'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                    }`}
+                  >
+                    <span>Cronograma Gantt</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('tarefas')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'tarefas'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                    }`}
+                  >
+                    <span>Anotações</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('fornecedores')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'fornecedores'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                    }`}
+                  >
+                    <span>Fornecedores</span>
+                  </button>
+                  <button
+                    onClick={() => setSubTab('relatorios')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      subTab === 'relatorios'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-[#1b3320] text-emerald-200 hover:text-white hover:bg-[#25482e] border border-emerald-800/50'
+                    }`}
+                  >
+                    <span>Relatórios</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
 
